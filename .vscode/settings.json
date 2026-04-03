@@ -1,0 +1,14 @@
+{
+    "ocaml.sandbox": {
+        "kind": "global"
+    },
+    "[ocaml]": {
+        "editor.defaultFormatter": "ocamllabs.ocaml-platform",
+        "editor.formatOnSave": true
+    },
+    "[nix]": {
+        "editor.formatOnSave": false,
+    },
+    "editor.formatOnSave": true,
+    "nixEnvSelector.suggestion": false,
+}

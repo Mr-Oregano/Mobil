@@ -1,0 +1,4 @@
+(executable
+ (public_name Mobil)
+ (name main)
+ (libraries Mobil))
