@@ -42,3 +42,9 @@ result-*
 # Ignore automatically generated direnv output
 .direnv
 .envrc
+
+# vscode
+.vscode/
+
+# Built Visual Studio Code Extensions
+*.vsix
