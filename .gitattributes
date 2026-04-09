@@ -1,0 +1,2 @@
+# Ignore everything in the lock directory
+dune.lock/** linguist-detectable=false
