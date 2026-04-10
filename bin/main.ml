@@ -1,8 +1,4 @@
-open Mobil
-open Lexing
-open Types
-open Parser
-open Lexer
+open Mobil.Frontend
 open Printf
 
 let interpret (source : string) =
