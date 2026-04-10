@@ -1,2 +1,7 @@
 (library
  (name Mobil))
+
+(ocamllex lexer)
+
+(menhir
+ (modules parser))

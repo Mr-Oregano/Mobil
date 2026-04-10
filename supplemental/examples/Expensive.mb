@@ -1,0 +1,53 @@
+
+################### CLIENT ###################
+
+# Client program wants to do heavy processing on a large amount of data
+# and retrieve filtered results for further, local processing
+
+mark M_ProcessData in
+
+let Arrays = <local> in # <--- Client's local instance to built-in module
+let db = <stub or local> in     # <--- Client may have local instance to db
+let Mkit = <stub or local> in  # <--- Client may have local instance to math library
+
+# Marshal code using the resources that will be dynamically rebound
+let package = marshal M_ProcessData
+    (let records = db.query("...") in
+     let cov = Mkit.cov (Mkit.transpose (records - Mkit.mean records ~axis:0))
+     let eigvals, eigvecs = (Mkit.eig cov ~sorted:true ~normalized: true)
+     let transformed = Arrays.firstn 2 (Mkit.dot records eigvecs)
+     let clusters = Mkit.kmeans2 4 transformed ~seed:0)
+
+# The underlying mechanism that marshals the code into a package will
+# first elevate it into a function requesting dynamic rebinds as 
+# parameters? This function will be serialized as an AST to be interpreted 
+# on the opposing end. 
+# 
+# More sophisticated implementations may use an IR after optimizations.
+
+# Send the marshalled code through a request channel
+let _ request_chan ! package in
+
+# Block and wait for results through receive channel
+let clusters = receive_chan ? in
+
+# ...
+
+################### SERVER ###################
+
+# Block and wait for code from client
+let code = (
+    mark M_ProcessData in # <--- Mark this local environment 
+    let Arrays = <local> in
+    let db = <local> in
+    let Mkit = <local> in
+    unmarshal M_ProcessData request_chan ?) in
+
+# Execute the client code
+let results = code () in
+
+# Marshal the results
+let package = (mark M_ in marshal M results) in 
+
+# Respond with the results
+response_chan ! package

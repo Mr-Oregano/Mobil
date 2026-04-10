@@ -32,6 +32,7 @@
             # Build tools
             nativeBuildInputs = with ocamlPackages; [
               findlib
+              menhir
             ];
 
             # Build dependencies
@@ -56,6 +57,7 @@
               utop
               ocamlformat
               ocaml-lsp
+              menhir
               findlib # needed for dune
             ];
           };
