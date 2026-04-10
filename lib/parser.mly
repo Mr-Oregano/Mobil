@@ -2,10 +2,11 @@
   open Types.Ast
 %}
 
-/* Tokens */
+// Tokens
 %token <string> IDENT
 %token <int> NUM
 %token UNIT
+%token WILDCARD
 
 %token KW_IF 
 %token KW_THEN 
@@ -27,9 +28,11 @@
 %token PERIOD
 %token BACKSLASH
 %token COLON 
-%token PLUS
+%token PLUS MINUS
 %token EQUALS
 %token EOF
+
+%type <id option> binder
 
 %start <expr> prog
 
@@ -49,6 +52,11 @@ base_typ:
   | KW_NUM { T_Num }
   | KW_UNIT { T_Unit }
   | LPAREN; t = typ_; RPAREN { t }
+
+// Misc
+binder:
+  | x = IDENT { Some x }
+  | WILDCARD { None }
 
 // ========== Expressions ========== 
 expr:
@@ -70,7 +78,7 @@ abs_expr:
 
 cmpnd_expr:
   | e = basic_expr { e }
-  | KW_LET; id = IDENT; EQUALS; v = cmpnd_expr; KW_IN; e = cmpnd_expr 
+  | KW_LET; id = binder; EQUALS; v = cmpnd_expr; KW_IN; e = cmpnd_expr 
         { E_Let { binder = id; value = v; body = e } }
 
   | KW_IF; c = cmpnd_expr; KW_THEN; e1 = cmpnd_expr; KW_ELSE; e2 = cmpnd_expr 
@@ -79,8 +87,9 @@ cmpnd_expr:
 basic_expr:
   | e = app_expr { e }
 
-//   Left-associative addition: a + b + c === (a + b) + c
-  | e1 = basic_expr; PLUS; e2 = app_expr { E_Add (e1, e2) }
+//   Left-associative binary operations: a + b + c === (a + b) + c
+  | e1 = basic_expr; PLUS; e2 = app_expr { E_BinOp (O_Add, e1, e2) }
+  | e1 = basic_expr; MINUS; e2 = app_expr { E_BinOp (O_Sub, e1, e2) }
 
 //   Left-associative channel send: a ! b ! c === (a ! b) ! c
   | e1 = basic_expr; EXCLAMATION; e2 = app_expr { E_ChanSend { chan = e1; package = e2 } }
@@ -97,6 +106,7 @@ app_expr:
 simple:
   | v = IDENT { E_Var v }
   | n = NUM { E_Num n }
+  | e = simple; PERIOD; id = IDENT { E_Access (e, id) }
   | KW_TRUE { E_Bool true }
   | KW_FALSE { E_Bool false }
   | UNIT { E_Unit }

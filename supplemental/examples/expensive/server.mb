@@ -1,0 +1,17 @@
+################### SERVER ###################
+
+# Block and wait for code from client
+let code = (mark M_ProcessData in # <--- Mark this local environment 
+   (let Arrays = () in
+    let db = () in
+    let Mkit = () in
+    (unmarshal M_ProcessData request_chan ?))) in
+
+# Execute the client code
+let results = code () in
+
+# Marshal the results
+let package = (mark M in (marshal M results)) in 
+
+# Respond with the results
+response_chan ! package

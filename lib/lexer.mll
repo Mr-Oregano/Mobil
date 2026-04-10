@@ -3,6 +3,7 @@
 }
 
 let white = [' ' '\t' '\n' '\r']+
+let comment = '#' [^ '\n' '\r']* 
 let letter = ['a'-'z' 'A'-'Z']
 let digit = ['0'-'9']
 let numba = digit+
@@ -10,6 +11,7 @@ let ident = letter (letter | digit | '_')*
 
 rule read = parse
   | white            { read lexbuf }
+  | comment          { read lexbuf }
   | "if"             { KW_IF }
   | "then"           { KW_THEN }
   | "else"           { KW_ELSE }
@@ -31,8 +33,10 @@ rule read = parse
   | '.'              { PERIOD }
   | '\\'             { BACKSLASH }
   | '+'              { PLUS }
+  | '-'              { MINUS }
   | '='              { EQUALS }
   | "()"             { UNIT }
+  | "_"              { WILDCARD }
   | ident as id      { IDENT id }
   | numba as n       { NUM (int_of_string n) }
   | eof              { EOF }
