@@ -1,9 +1,11 @@
 open Mobil.Frontend
+open Mobil.Debug
 open Printf
 
 let interpret (source : string) =
   let lexbuf = Lexing.from_string source in
-  Parser.prog Lexer.read lexbuf
+  let ast = Parser.prog Lexer.read lexbuf in
+  Graphviz.eval_graphviz stdout ast
 
 let usage () = sprintf "Usage: %s <FILE>" Sys.argv.(0) |> prerr_endline
 
