@@ -3,6 +3,7 @@ module Ast = struct
 
   and typ_ =
     | T_Num
+    | T_Bool
     | T_Unit
     | T_Func of {
         from : typ_;

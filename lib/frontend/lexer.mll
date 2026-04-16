@@ -23,6 +23,7 @@ rule read = parse
   | "unmarshal"      { KW_UNMARSHAL }
   | "mark"           { KW_MARK }
   | "num"            { KW_NUM }
+  | "bool"           { KW_BOOL }
   | "unit"           { KW_UNIT }
   | "->"             { ARROW }
   | '('              { LPAREN }

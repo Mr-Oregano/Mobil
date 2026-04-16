@@ -18,6 +18,7 @@
 %token KW_UNMARSHAL 
 %token KW_MARK
 %token KW_NUM
+%token KW_BOOL
 %token KW_UNIT
 
 %token LPAREN
@@ -50,6 +51,7 @@ typ_:
 
 base_typ:
   | KW_NUM { T_Num }
+  | KW_BOOL { T_Bool }
   | KW_UNIT { T_Unit }
   | LPAREN t = typ_ RPAREN { t }
 
