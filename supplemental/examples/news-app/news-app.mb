@@ -20,12 +20,16 @@ let serverMain = \(u: unit) ->
     # Await for a client to deliver code via channel, the `db` is dynamically rebounded
     # CONSIDERATIONS:
     #   - In Bierman et al. the type from the channel is "Marsh num"
-    #   - Does unmarshal apply dynamic rebinding and execute the code?
+    #   - Does unmarshal apply dynamic rebinding ~~and execute the code~~?
+    #   - UPDATE: The code is evaluated to the same value as it was in the client, but dynamic rebinding is applied
     # 
-    let results = (mark M_NewsDatabase in
+    let code = (mark M_NewsDatabase in
         let db = loadDataBase () in
         (unmarshal M_NewsDatabase chan ?)) 
     in
+
+    # Execute the code that we received
+    let results = code () in
 
     # Send results back to client
     chan ! (mark M_NewsResult in (marshal M_NewsResult results))
@@ -40,7 +44,7 @@ let windowsMain = \(u: unit) ->
 
     # Create a channel that will be used for communication
     let chan = () in
-    let loc = gps.getLoc() in
+    let loc = gps.getLoc () in
 
     mark M_News in
 
@@ -51,10 +55,15 @@ let windowsMain = \(u: unit) ->
     # CONSIDERATIONS:
     #   - In Bierman et al. This would be typed `Marsh num`?
     #   - Does this language integrate the destruct-time reduction semantics? 
-    #       - What benefit does doing that provide over just passing in a 'unit' function? Syntax sugar?
-    #       - If only syntax sugar, why not wrap code in unit function instead of implementing complicated reductions?
+    #       - ~~What benefit does doing that provide over just passing in a 'unit' function? Syntax sugar?~~
+    #       - ~~If only syntax sugar, why not wrap code in unit function instead of implementing complicated reductions?~~
+    #       - UPDATE: Can't be wrapped, because it doesn't solve the incompatibility with dynamic-rebinding and let
+    #   - What if we use gps to get location directly in the expression? 
+    #       - GPS can't be on the server, but we likely can't marshal that either
+    #       - Ideally server should execute this on the client, but what does that interaction look like?
     # 
-    let _ = chan ! (marshal M_News (getNews loc db)) in
+    let _ = chan ! (marshal M_News (\(u: unit) -> getNews loc db)) in
+    # let _ = chan ! (marshal M_News (getNews (gps.getLoc ()) db)) in
 
     # Get the result from the server
     let result = unmarshal M_News chan ? in

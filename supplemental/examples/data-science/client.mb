@@ -12,7 +12,7 @@ let Mkit = () in  # <--- Client may have local instance to math library
 
 # Marshal code using the resources that will be dynamically rebound
 let package = (marshal M_ProcessData
-    (let records = db.query () in
+    (\(u: unit) -> let records = db.query () in
      let cov = Mkit.cov (Mkit.transpose (records - Mkit.mean records)) in
      let eigvecs = (Mkit.eig cov) in
      let transformed = Arrays.firstn 2 (Mkit.dot records eigvecs) in
