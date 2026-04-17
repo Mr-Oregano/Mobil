@@ -28,10 +28,13 @@ rule read = parse
   | "->"             { ARROW }
   | '('              { LPAREN }
   | ')'              { RPAREN }
+  | '{'              { LBRACE }
+  | '}'              { RBRACE }
   | '!'              { EXCLAMATION }
   | '?'              { QUESTION }
   | ':'              { COLON }
   | '.'              { PERIOD }
+  | ','              { COMMA }
   | '\\'             { BACKSLASH }
   | '+'              { PLUS }
   | '-'              { MINUS }

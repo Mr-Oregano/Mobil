@@ -9,6 +9,7 @@ module Ast = struct
         from : typ_;
         to_ : typ_;
       }
+    | T_Rec of (id * typ_) list
 
   and op =
     | O_Add
@@ -46,5 +47,6 @@ module Ast = struct
     | E_Var of id
     | E_Num of int
     | E_Bool of bool
+    | E_Rec of (id * expr) list
     | E_Unit
 end

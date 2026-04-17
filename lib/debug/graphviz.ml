@@ -51,9 +51,12 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
         make_node "E_BinOp" [ eval_expr e1; make_leaf (op_to_string op); eval_expr e2 ]
     | E_App (callee, arg) -> make_node "E_App" [ eval_expr callee; eval_expr arg ]
     | E_Access (e, id) -> make_node "E_Access" [ eval_id id; eval_expr e ]
-    | E_Var v -> make_leaf (sprintf "E_Var { %s }" v)
-    | E_Num n -> make_leaf (sprintf "E_Num { %s }" (Int.to_string n))
-    | E_Bool b -> make_leaf (sprintf "E_Bool { %s }" (Bool.to_string b))
+    | E_Var v -> make_leaf (sprintf "E_Var (%s)" v)
+    | E_Num n -> make_leaf (sprintf "E_Num (%s)" (Int.to_string n))
+    | E_Bool b -> make_leaf (sprintf "E_Bool (%s)" (Bool.to_string b))
+    | E_Rec es ->
+        let eval_entry = fun (id, v) -> make_node "<entry>" [ eval_id id; eval_expr v ] in
+        make_node "E_Rec { ... }" (List.map eval_entry es)
     | E_Unit -> make_leaf (sprintf "E_Unit")
   and eval_typ (t : Ast.typ_) =
     match t with
@@ -61,8 +64,11 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | T_Unit -> make_leaf "T_Unit"
     | T_Bool -> make_leaf "T_Bool"
     | T_Func { from; to_ } -> make_node "T_Func" [ eval_typ from; make_leaf "->"; eval_typ to_ ]
-  and eval_param ((id, typ_) : Ast.param) = make_node "param" [ eval_id id; eval_typ typ_ ]
-  and eval_id (i : Ast.id) = make_leaf (sprintf "ID { %s }" i) in
+    | T_Rec es ->
+        let eval_entry = fun (id, t) -> make_node "<entry>" [ eval_id id; eval_typ t ] in
+        make_node "T_Rec { ... }" (List.map eval_entry es)
+  and eval_param ((id, typ_) : Ast.param) = make_node "<param>" [ eval_id id; eval_typ typ_ ]
+  and eval_id (i : Ast.id) = make_leaf (sprintf "ID (%s)" i) in
 
   let () = outs "digraph { ordering=\"out\" " in
   let _ = eval_expr prog in

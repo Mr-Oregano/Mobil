@@ -21,12 +21,12 @@
 %token KW_BOOL
 %token KW_UNIT
 
-%token LPAREN
-%token RPAREN
+%token LPAREN LBRACE
+%token RPAREN RBRACE
 %token EXCLAMATION
 %token QUESTION
 %token ARROW
-%token PERIOD
+%token PERIOD COMMA
 %token BACKSLASH
 %token COLON 
 %token PLUS MINUS
@@ -45,9 +45,13 @@ prog:
 // ========== Types ========== 
 typ_:
   | t = base_typ { t }
+  | LBRACE ts = separated_list(COMMA, record_type_entry) RBRACE { T_Rec ts }
 
 //   Right-associative function types: num -> num -> unit === num -> (num -> unit)
   | t1 = base_typ ARROW t2 = typ_ { T_Func { from = t1; to_ = t2 } }
+
+record_type_entry:
+  | x = IDENT COLON t = typ_ { (x, t) }
 
 base_typ:
   | KW_NUM { T_Num }
@@ -109,7 +113,11 @@ simple:
   | v = IDENT { E_Var v }
   | n = NUM { E_Num n }
   | e = simple PERIOD id = IDENT { E_Access (e, id) }
+  | LBRACE es = separated_list(COMMA, record_value_entry) RBRACE { E_Rec es }
   | KW_TRUE { E_Bool true }
   | KW_FALSE { E_Bool false }
   | UNIT { E_Unit }
   | LPAREN e = expr RPAREN { e }
+
+record_value_entry:
+  | x = IDENT COLON e = expr { (x, e) }
