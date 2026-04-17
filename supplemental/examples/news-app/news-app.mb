@@ -1,0 +1,67 @@
+
+let getNews = \(loc: { coords: num, time: num } ) -> \(db: { query: num -> num }) ->
+    db loc.coords
+in
+
+let loadDataBase = \(u: unit) -> 
+    { query: \(q: num) -> 69 }
+in
+
+let serverMain = \(u: unit) -> 
+    # Server:
+    #   1) Loads the database, this will be a local resource
+    #   2) Awaits client connections
+    #   3) Executes code from client
+    #   4) Executes code on the client
+
+    # Create the channel that will be used for communication
+    let chan = () in
+
+    # Await for a client to deliver code via channel, the `db` is dynamically rebounded
+    # CONSIDERATIONS:
+    #   - In Bierman et al. the type from the channel is "Marsh num"
+    #   - Does unmarshal apply dynamic rebinding and execute the code?
+    # 
+    let results = (mark M_NewsDatabase in
+        let db = loadDataBase () in
+        (unmarshal M_NewsDatabase chan ?)) 
+    in
+
+    # Send results back to client
+    chan ! (mark M_NewsResult in (marshal M_NewsResult results))
+in
+
+let windowsMain = \(u: unit) ->
+    # Client
+    #   1) Setup client-side UI
+    #   2) Stubs the database, this will be a remote resource
+    #   3) Executes code on the server
+    #   4) Executes code from the server
+
+    # Create a channel that will be used for communication
+    let chan = () in
+    let loc = gps.getLoc() in
+
+    mark M_News in
+
+    # `db` will be dynamically rebound with respect to M_News
+    let db = loadDataBase () in
+
+    # Send the code we wish to send to the server
+    # CONSIDERATIONS:
+    #   - In Bierman et al. This would be typed `Marsh num`?
+    #   - Does this language integrate the destruct-time reduction semantics? 
+    #       - What benefit does doing that provide over just passing in a 'unit' function? Syntax sugar?
+    #       - If only syntax sugar, why not wrap code in unit function instead of implementing complicated reductions?
+    # 
+    let _ = chan ! (marshal M_News (getNews loc db)) in
+
+    # Get the result from the server
+    let result = unmarshal M_News chan ? in
+
+    # Show the results on the UI ...
+    ()
+in
+
+if true then serverMain () else windowsMain ()
+    

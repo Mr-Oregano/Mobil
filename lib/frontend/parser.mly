@@ -70,24 +70,23 @@ expr:
 
 marsh_expr:
   | e = abs_expr { e }
-//   Disallow nested marshals and marks? TODO: Does this even make any sense?
-  | KW_MARK m = IDENT KW_IN e = abs_expr { E_Mark (m, e) }
-  | KW_MARSHAL m = IDENT e = abs_expr { E_Marshal (m, e) }
-  | KW_UNMARSHAL m = IDENT e = abs_expr { E_Unmarshal (m, e) }
+  | KW_MARK m = IDENT KW_IN e = marsh_expr { E_Mark (m, e) }
+  | KW_MARSHAL m = IDENT e = marsh_expr { E_Marshal (m, e) }
+  | KW_UNMARSHAL m = IDENT e = marsh_expr { E_Unmarshal (m, e) }
 
 abs_expr:
   | e = cmpnd_expr { e }
 
-//   Allow nested lambda abstraction: \(x: num). \(y: num). x + y === \(x: num). (\(y: num). x + y)
-  | BACKSLASH LPAREN param_id = IDENT COLON param_typ = typ_ RPAREN PERIOD e = abs_expr 
+//   Allow nested lambda abstraction: \(x: num) -> \(y: num) -> x + y === \(x: num) -> (\(y: num) -> x + y)
+  | BACKSLASH LPAREN param_id = IDENT COLON param_typ = typ_ RPAREN ARROW e = abs_expr 
         { E_Abs { param = (param_id, param_typ); body = e } }
 
 cmpnd_expr:
   | e = basic_expr { e }
-  | KW_LET b = binder EQUALS v = cmpnd_expr KW_IN e = cmpnd_expr 
+  | KW_LET b = binder EQUALS v = expr KW_IN e = expr
         { E_Let { binder = b; value = v; body = e } }
 
-  | KW_IF c = cmpnd_expr KW_THEN e1 = cmpnd_expr KW_ELSE e2 = cmpnd_expr 
+  | KW_IF c = expr KW_THEN e1 = expr KW_ELSE e2 = expr
         { E_If { cond = c; if_ = e1; else_ = e2 } }
 
 basic_expr:
@@ -96,12 +95,10 @@ basic_expr:
 //   Left-associative binary operations: a + b + c === (a + b) + c
   | e1 = basic_expr PLUS e2 = app_expr { E_BinOp (O_Add, e1, e2) }
   | e1 = basic_expr MINUS e2 = app_expr { E_BinOp (O_Sub, e1, e2) }
+  | e = basic_expr QUESTION { E_ChanReceive e }
 
 //   Left-associative channel send: a ! b ! c === (a ! b) ! c
   | e1 = basic_expr EXCLAMATION e2 = app_expr { E_ChanSend { chan = e1; package = e2 } }
-
-//   Allow nested channel receive? : a ? ? ? === ((a ?) ?) ? TODO: Does this even make any sense?
-  | e = basic_expr QUESTION { E_ChanReceive e }
 
 app_expr:
   | e = simple { e }
