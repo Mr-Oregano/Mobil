@@ -1,5 +1,5 @@
 %{
-  open Types.Ast
+  open Typing.Structs.Ast
 %}
 
 // Tokens

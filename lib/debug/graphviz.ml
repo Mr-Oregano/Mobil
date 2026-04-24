@@ -1,4 +1,4 @@
-open Types
+open Typing.Structs
 open Printf
 
 (* Nodes in graphviz are represented by their integer ID *)

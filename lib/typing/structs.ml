@@ -1,0 +1,105 @@
+module Ast = struct
+  type prog = expr
+
+  and typ_ =
+    | T_Num
+    | T_Bool
+    | T_Unit
+    | T_Func of {
+        from : typ_;
+        to_ : typ_;
+      }
+    | T_Rec of (id * typ_) list
+
+  and expr =
+    | E_Mark of (id * expr)
+    | E_Marshal of (id * expr)
+    | E_Unmarshal of (id * expr)
+    | E_Abs of {
+        param : param;
+        body : expr;
+      }
+    | E_If of {
+        cond : expr;
+        if_ : expr;
+        else_ : expr;
+      }
+    | E_Let of {
+        binder : id option;
+        value : expr;
+        body : expr;
+      }
+    | E_ChanSend of {
+        chan : expr;
+        package : expr;
+      }
+    | E_ChanReceive of expr
+    | E_BinOp of (op * expr * expr)
+    | E_App of (expr * expr)
+    | E_Access of (expr * id)
+    | E_Var of id
+    | E_Num of int
+    | E_Bool of bool
+    | E_Rec of (id * expr) list
+    | E_Unit
+
+  and param = id * typ_
+
+  and op =
+    | O_Add
+    | O_Sub
+
+  and id = string
+end
+
+module ET = struct
+  type prog = expr
+
+  and typ =
+    | T_Num
+    | T_Bool
+    | T_Unit
+    | T_Func of {
+        from : typ;
+        to_ : typ;
+      }
+    | T_Rec of (id * typ) list
+
+  and expr = _expr_desc * typ
+
+  and _expr_desc =
+    | E_Mark of (id * expr)
+    | E_Marshal of (id * expr)
+    | E_Unmarshal of (id * expr)
+    | E_ChanSend of {
+        chan : expr;
+        package : expr;
+      }
+    | E_ChanReceive of expr
+    | E_Abs of {
+        param : param;
+        body : expr;
+      }
+    | E_If of {
+        cond : expr;
+        if_ : expr;
+        else_ : expr;
+      }
+    | E_Let of {
+        binder : id option;
+        value : expr;
+        body : expr;
+      }
+    | E_BinOp of (op * expr * expr)
+    | E_App of (expr * expr)
+    | E_Access of (expr * id)
+    | E_Var of id
+    | E_Num of int
+    | E_Bool of bool
+    | E_Rec of (id * expr) list
+    | E_Unit
+
+  and param = id * typ
+  and op = Ast.op
+  and id = string
+end
