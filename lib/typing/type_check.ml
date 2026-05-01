@@ -131,7 +131,7 @@ and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
   match t1 with
   | T_Func { from; to_ } -> (
       match t2 with
-      (* Note, subsumption on functions makes the inputs contravariant and outputs covariant *)
+      (* Note, subsumption on functions is contravariant with respect to input types and covariant with respect to output types *)
       | T_Func { from = from'; to_ = to_' } -> from' <= from && to_ <= to_'
       | _ -> false)
   | T_Rec es -> (
