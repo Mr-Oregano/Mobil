@@ -1,0 +1,63 @@
+
+let db = loadDataBase () in
+
+let getNews = \(loc: { coords: num, time: num } ) ->
+    db.query loc.coords
+in
+
+let loadDataBase = \(u: unit) -> 
+    { query: \(q: num) -> 69 }
+in
+
+# Create the channels that will be used for communication, ideally this language would have session types
+let c2s_chan = () in
+let s2c_chan = () in
+
+let serverMain = \(u: unit) -> 
+    # Server:
+    #   2) Awaits client connections
+    #   3) Executes code from client
+    #   4) Executes code on the client
+
+    # Await for a client to deliver code via channel, the `db` is dynamically rebounded
+    # The unmarshal capture list is where the server provides its interface
+    # 
+    #   - The type of c2s_chan is (Chan (unit -> num) @ [ db: { query: num -> num } ])
+    #   - Unmarshal provides 'db' which is compatible with the coeffect
+    #   - The resulting code is of type (unit -> num) and can be executed on the server, 'db' will by dynamically rebound
+    # 
+    let code = unmarshal [ db ] (c2s_chan ?) in
+
+    # Execute the code that we received
+    let results = code () in
+
+    # Send results back to client
+    s2c_chan ! (marshal [] results)
+in
+
+let windowsMain = \(u: unit) ->
+    # Client
+    #   1) Setup client-side UI
+    #   2) Stubs the database, this will be a remote resource
+    #   3) Executes code on the server
+    #   4) Executes code from the server
+    let loc = gps.getLoc () in
+    
+    # Send the code we wish to send to the server
+    # 
+    #   - The type of getNews is (loc: { coords: num, time: num } ) @ [ db: { query: num -> num } ] -> num
+    #   - This transitively applies to the marshaled code: '\(u: unit) -> getNews loc)' which is becomes type (unit [ db: { query: num -> num } ] -> num), 
+    #   - This is compatible with the type of c2s_chan
+    #     (NOTE: for a marshal, the default is dynamic rebinding, the programmer explicitly states what should be value-marshaled)
+    # 
+    let _ = c2s_chan ! (marshal [] (\(u: unit) -> getNews loc)) in
+
+    # Get the result from the server
+    let result = unmarshal [] s2c_chan ? in
+
+    # Show the results on the UI ...
+    ()
+in
+
+if true then serverMain () else windowsMain ()
+    
