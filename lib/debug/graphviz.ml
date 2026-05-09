@@ -20,9 +20,12 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
 
   let rec eval_expr (e : Ast.expr) =
     match e with
-    | E_Mark (id, e) -> make_node "E_Mark" [ eval_id id; eval_expr e ]
-    | E_Marshal (id, e) -> make_node "E_Marshal" [ eval_id id; eval_expr e ]
-    | E_Unmarshal (id, e) -> make_node "E_Unmarshal" [ eval_id id; eval_expr e ]
+    | E_Marshal { context; body } ->
+        let ctx = make_node "[ ... ]" (List.map eval_id context) in
+        make_node "E_Marshal" [ ctx; eval_expr body ]
+    | E_Unmarshal { context; body } ->
+        let ctx = make_node "[ ... ]" (List.map eval_id context) in
+        make_node "E_Unmarshal" [ ctx; eval_expr body ]
     | E_Abs { param; body } -> make_node "E_Abs" [ eval_param param; eval_expr body ]
     | E_If { cond; if_; else_ } ->
         make_node "E_If"
@@ -34,10 +37,11 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
             make_leaf "else";
             eval_expr else_;
           ]
-    | E_Let { binder; value; body } ->
+    | E_Let { binder; mobility; value; body } ->
         make_node "E_Let"
           [
             make_leaf "let";
+            eval_mobility mobility;
             make_leaf (Option.value binder ~default:"_");
             make_leaf "=";
             eval_expr value;
@@ -58,7 +62,9 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
         let eval_entry = fun (id, v) -> make_node "<entry>" [ eval_id id; eval_expr v ] in
         make_node "E_Rec { ... }" (List.map eval_entry es)
     | E_Unit -> make_leaf (sprintf "E_Unit")
-  and eval_typ (t : Ast.typ_) =
+  and eval_mobility (m : Ast.mobility) =
+    match m with M_Mobile -> make_leaf "M_Mobile" | M_iMobile -> make_leaf "M_iMobile"
+  and eval_typ (t : Ast.typ) =
     match t with
     | T_Num -> make_leaf "T_Num"
     | T_Unit -> make_leaf "T_Unit"

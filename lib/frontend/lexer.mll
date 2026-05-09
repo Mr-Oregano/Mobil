@@ -21,7 +21,8 @@ rule read = parse
   | "in"             { KW_IN }
   | "marshal"        { KW_MARSHAL }
   | "unmarshal"      { KW_UNMARSHAL }
-  | "mark"           { KW_MARK }
+  | "mobile"         { KW_MOBILE }
+  | "imobile"        { KW_IMOBILE }
   | "num"            { KW_NUM }
   | "bool"           { KW_BOOL }
   | "unit"           { KW_UNIT }
@@ -30,6 +31,8 @@ rule read = parse
   | ')'              { RPAREN }
   | '{'              { LBRACE }
   | '}'              { RBRACE }
+  | '['              { LBRACK }
+  | ']'              { RBRACK }
   | '!'              { EXCLAMATION }
   | '?'              { QUESTION }
   | ':'              { COLON }

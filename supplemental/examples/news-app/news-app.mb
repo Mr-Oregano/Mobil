@@ -1,38 +1,38 @@
 
-let getNews = \(loc: { coords: num, time: num } ) -> \(db: { query: num -> num }) ->
-    db loc.coords
-in
-
 let loadDataBase = \(u: unit) -> 
     { query: \(q: num) -> 69 }
 in
 
+let imobile db = loadDataBase () in
+
+let getNews = \(loc: { coords: num, time: num } ) ->
+    db.query loc.coords
+in
+
+# Create the channels that will be used for communication, ideally this language would have session types
+let c2s_chan = () in
+let s2c_chan = () in
+
 let serverMain = \(u: unit) -> 
     # Server:
-    #   1) Loads the database, this will be a local resource
     #   2) Awaits client connections
     #   3) Executes code from client
     #   4) Executes code on the client
 
-    # Create the channel that will be used for communication
-    let chan = () in
-
     # Await for a client to deliver code via channel, the `db` is dynamically rebounded
-    # CONSIDERATIONS:
-    #   - In Bierman et al. the type from the channel is "Marsh num"
-    #   - Does unmarshal apply dynamic rebinding ~~and execute the code~~?
-    #   - UPDATE: The code is evaluated to the same value as it was in the client, but dynamic rebinding is applied
+    # The unmarshal capture list is where the server provides its interface
     # 
-    let code = (mark M_NewsDatabase in
-        let db = loadDataBase () in
-        (unmarshal M_NewsDatabase chan ?)) 
-    in
+    #   - The type of c2s_chan is (Chan (unit -> num) @ [ db: { query: num -> num } ])
+    #   - Unmarshal provides 'db' which is compatible with the coeffect
+    #   - The resulting code is of type (unit -> num) and can be executed on the server, 'db' will by dynamically rebound
+    # 
+    let code = unmarshal [ db ] (c2s_chan ?) in
 
     # Execute the code that we received
     let results = code () in
 
     # Send results back to client
-    chan ! (mark M_NewsResult in (marshal M_NewsResult results))
+    s2c_chan ! (marshal [] results)
 in
 
 let windowsMain = \(u: unit) ->
@@ -41,32 +41,19 @@ let windowsMain = \(u: unit) ->
     #   2) Stubs the database, this will be a remote resource
     #   3) Executes code on the server
     #   4) Executes code from the server
-
-    # Create a channel that will be used for communication
-    let chan = () in
     let loc = gps.getLoc () in
-
-    mark M_News in
-
-    # `db` will be dynamically rebound with respect to M_News
-    let db = loadDataBase () in
-
+    
     # Send the code we wish to send to the server
-    # CONSIDERATIONS:
-    #   - In Bierman et al. This would be typed `Marsh num`?
-    #   - Does this language integrate the destruct-time reduction semantics? 
-    #       - ~~What benefit does doing that provide over just passing in a 'unit' function? Syntax sugar?~~
-    #       - ~~If only syntax sugar, why not wrap code in unit function instead of implementing complicated reductions?~~
-    #       - UPDATE: Can't be wrapped, because it doesn't solve the incompatibility with dynamic-rebinding and let
-    #   - What if we use gps to get location directly in the expression? 
-    #       - GPS can't be on the server, but we likely can't marshal that either
-    #       - Ideally server should execute this on the client, but what does that interaction look like?
     # 
-    let _ = chan ! (marshal M_News (\(u: unit) -> getNews loc db)) in
-    # let _ = chan ! (marshal M_News (getNews (gps.getLoc ()) db)) in
+    #   - The type of getNews is (loc: { coords: num, time: num } ) -> num @ [ db: { query: num -> num } ]
+    #   - This transitively applies to the marshaled code: '\(u: unit) -> getNews loc)' which is becomes type (unit -> num [ db: { query: num -> num } ]), 
+    #   - This is compatible with the type of c2s_chan
+    #     (NOTE: for a marshal, the default is dynamic rebinding, the programmer explicitly states what should be value-marshaled)
+    # 
+    let _ = c2s_chan ! (marshal [] (\(u: unit) -> getNews loc)) in
 
     # Get the result from the server
-    let result = unmarshal M_News chan ? in
+    let result = unmarshal [] s2c_chan ? in
 
     # Show the results on the UI ...
     ()

@@ -16,13 +16,14 @@
 %token KW_IN 
 %token KW_MARSHAL 
 %token KW_UNMARSHAL 
-%token KW_MARK
+%token KW_MOBILE
+%token KW_IMOBILE
 %token KW_NUM
 %token KW_BOOL
 %token KW_UNIT
 
-%token LPAREN LBRACE
-%token RPAREN RBRACE
+%token LPAREN LBRACE LBRACK
+%token RPAREN RBRACE RBRACK
 %token EXCLAMATION
 %token QUESTION
 %token ARROW
@@ -70,9 +71,8 @@ expr:
 
 marsh_expr:
   | e = abs_expr { e }
-  | KW_MARK m = IDENT KW_IN e = marsh_expr { E_Mark (m, e) }
-  | KW_MARSHAL m = IDENT e = marsh_expr { E_Marshal (m, e) }
-  | KW_UNMARSHAL m = IDENT e = marsh_expr { E_Unmarshal (m, e) }
+  | KW_MARSHAL LBRACK ctx = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Marshal { context = ctx; body = e } }
+  | KW_UNMARSHAL LBRACK ctx = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Unmarshal { context = ctx; body = e } }
 
 abs_expr:
   | e = cmpnd_expr { e }
@@ -83,11 +83,17 @@ abs_expr:
 
 cmpnd_expr:
   | e = basic_expr { e }
-  | KW_LET b = binder EQUALS v = expr KW_IN e = expr
-        { E_Let { binder = b; value = v; body = e } }
+  | KW_LET m = mobility b = binder EQUALS v = expr KW_IN e = expr
+        { E_Let { binder = b; mobility = m; value = v; body = e } }
 
   | KW_IF c = expr KW_THEN e1 = expr KW_ELSE e2 = expr
         { E_If { cond = c; if_ = e1; else_ = e2 } }
+
+// Mobility defaults to imobile as that is the "safest"
+mobility:
+  | KW_MOBILE  { M_Mobile }
+  | KW_IMOBILE { M_iMobile }
+  |            { M_iMobile }
 
 basic_expr:
   | e = app_expr { e }

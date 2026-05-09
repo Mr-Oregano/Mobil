@@ -1,20 +1,29 @@
 module Ast = struct
   type prog = expr
 
-  and typ_ =
+  and typ =
     | T_Num
     | T_Bool
     | T_Unit
     | T_Func of {
-        from : typ_;
-        to_ : typ_;
+        from : typ;
+        to_ : typ;
       }
-    | T_Rec of (id * typ_) list
+    | T_Rec of (id * typ) list
+
+  and mobility =
+    | M_Mobile
+    | M_iMobile
 
   and expr =
-    | E_Mark of (id * expr)
-    | E_Marshal of (id * expr)
-    | E_Unmarshal of (id * expr)
+    | E_Marshal of {
+        context : id list;
+        body : expr;
+      }
+    | E_Unmarshal of {
+        context : id list;
+        body : expr;
+      }
     | E_Abs of {
         param : param;
         body : expr;
@@ -26,6 +35,7 @@ module Ast = struct
       }
     | E_Let of {
         binder : id option;
+        mobility : mobility;
         value : expr;
         body : expr;
       }
@@ -43,7 +53,7 @@ module Ast = struct
     | E_Rec of (id * expr) list
     | E_Unit
 
-  and param = id * typ_
+  and param = id * typ
 
   and op =
     | O_Add
@@ -65,12 +75,18 @@ module ET = struct
       }
     | T_Rec of (id * typ) list
 
+  and mobility = Ast.mobility
   and expr = _expr_desc * typ
 
   and _expr_desc =
-    | E_Mark of (id * expr)
-    | E_Marshal of (id * expr)
-    | E_Unmarshal of (id * expr)
+    | E_Marshal of {
+        context : id list;
+        body : expr;
+      }
+    | E_Unmarshal of {
+        context : id list;
+        body : expr;
+      }
     | E_ChanSend of {
         chan : expr;
         package : expr;
@@ -87,6 +103,7 @@ module ET = struct
       }
     | E_Let of {
         binder : id option;
+        mobility : mobility;
         value : expr;
         body : expr;
       }

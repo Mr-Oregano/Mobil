@@ -19,11 +19,10 @@ let rec type_check (prog : Ast.prog) =
 
 and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
   match expr with
-  | E_Mark _ -> Failure "unimplemented" |> raise
-  | E_Marshal _ -> Failure "unimplemented" |> raise
-  | E_Unmarshal _ -> Failure "unimplemented" |> raise
-  | E_ChanSend _ -> Failure "unimplemented" |> raise
-  | E_ChanReceive _ -> Failure "unimplemented" |> raise
+  | E_Marshal _ -> failwith "unimplemented"
+  | E_Unmarshal _ -> failwith "unimplemented"
+  | E_ChanSend _ -> failwith "unimplemented"
+  | E_ChanReceive _ -> failwith "unimplemented"
   | E_Abs { param; body } ->
       let param' = type_check_param ctx param in
       let ctx' = Context.add_var ctx param' in
@@ -33,7 +32,7 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
       let cond' = type_check_expr ctx cond in
       let () =
         if snd cond' = ET.T_Bool then ()
-        else Failure (sprintf "Expected type '%s'" (type_to_string ET.T_Bool)) |> raise
+        else failwith (sprintf "Expected type '%s'" (type_to_string ET.T_Bool))
       in
       let if_' = type_check_expr ctx if_ in
       let else_' = type_check_expr ctx else_ in
@@ -43,20 +42,20 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
       ( ET.E_If { cond = cond'; if_ = if_'; else_ = else_' },
         if snd if_' <= snd else_' then snd else_'
         else if snd else_' <= snd if_' then snd if_'
-        else Failure "Branches disagree on resulting type" |> raise )
-  | E_Let { binder; value; body } ->
+        else failwith "Branches disagree on resulting type" )
+  | E_Let { binder; mobility; value; body } ->
       let value' = type_check_expr ctx value in
       let ctx' =
         if Option.is_some binder then Context.add_var ctx (Option.get binder, snd value') else ctx
       in
       let body' = type_check_expr ctx' body in
-      (ET.E_Let { binder; value = value'; body = body' }, snd body')
+      (ET.E_Let { binder; mobility; value = value'; body = body' }, snd body')
   | E_BinOp (op, e1, e2) ->
       let e1' = type_check_expr ctx e1 in
       let e2' = type_check_expr ctx e2 in
       let () =
         if snd e1' <= ET.T_Num && snd e2' <= ET.T_Num then ()
-        else Failure (sprintf "Expected type '%s'" (type_to_string ET.T_Num)) |> raise
+        else failwith (sprintf "Expected type '%s'" (type_to_string ET.T_Num))
       in
       (ET.E_BinOp (op, e1', e2'), ET.T_Num)
   | E_App (callee, arg) -> (
@@ -67,16 +66,15 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
           let () =
             if snd arg' <= from then ()
             else
-              Failure
+              failwith
                 (sprintf "Argument cannot be applied. Expected type '%s' but got '%s'"
                    (type_to_string from)
                    (type_to_string (snd arg')))
-              |> raise
           in
           (ET.E_App (callee', arg'), to_)
       | _ ->
-          Failure (sprintf "Argument cannot be applied to type '%s'" (type_to_string (snd callee')))
-          |> raise)
+          failwith
+            (sprintf "Argument cannot be applied to type '%s'" (type_to_string (snd callee'))))
   | E_Access (exp, id) -> (
       let exp' = type_check_expr ctx exp in
       match snd exp' with
@@ -85,13 +83,13 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
           let id', typ =
             match entry_opt with
             | Some e -> e
-            | None -> Failure (sprintf "'%s' not present in record" id) |> raise
+            | None -> failwith (sprintf "'%s' not present in record" id)
           in
           (ET.E_Access (exp', id), typ)
-      | _ -> Failure (sprintf "Cannot access '%s' from non-record" id) |> raise)
+      | _ -> failwith (sprintf "Cannot access '%s' from non-record" id))
   | E_Var v -> (
       match Context.get_var ctx v with
-      | None -> Failure (sprintf "Unbound variable: '%s'" v) |> raise
+      | None -> failwith (sprintf "Unbound variable: '%s'" v)
       | Some t -> (ET.E_Var v, t))
   | E_Num n -> (ET.E_Num n, ET.T_Num)
   | E_Bool v -> (ET.E_Bool v, ET.T_Bool)
@@ -105,7 +103,7 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
       let () =
         match _aux_non_unique_opt es with
         | None -> ()
-        | Some id -> Failure (sprintf "Duplicate member '%s'" id) |> raise
+        | Some id -> failwith (sprintf "Duplicate member '%s'" id)
       in
       let es' = List.map (fun (id, exp) -> (id, type_check_expr ctx exp)) es in
       let tys = List.map (fun (id, exp) -> (id, snd exp)) es' in
@@ -113,7 +111,7 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) =
 
 and type_check_param (ctx : Context.t) ((name, typ) : Ast.param) = (name, type_check_type ctx typ)
 
-and type_check_type (ctx : Context.t) (typ : Ast.typ_) =
+and type_check_type (ctx : Context.t) (typ : Ast.typ) =
   match typ with
   | T_Num -> ET.T_Num
   | T_Bool -> ET.T_Bool

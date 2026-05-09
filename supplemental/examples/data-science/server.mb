@@ -1,17 +1,17 @@
 ################### SERVER ###################
 
+let imobile Arrays = () in # <--- Servers's local instance to built-in module
+let imobile db = () in     # <--- Servers may have local instance to db
+let imobile Mkit = () in   # <--- Servers may have local instance to math library
+
 # Block and wait for code from client
-let code = (mark M_ProcessData in # <--- Mark this local environment 
-   (let Arrays = () in
-    let db = () in
-    let Mkit = () in
-    (unmarshal M_ProcessData request_chan ?))) in
+let code = unmarshal [ db, Mkit, Arrays ] (request_chan ?) in
 
 # Execute the client code
 let results = code () in
 
 # Marshal the results
-let package = (mark M in (marshal M results)) in 
+let package = marshal [] results in 
 
 # Respond with the results
 response_chan ! package
