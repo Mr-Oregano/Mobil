@@ -53,7 +53,8 @@ typ_:
   | LBRACE ts = separated_list(COMMA, ident_type_pair) RBRACE { T_Rec ts }
 
 //   Right-associative function types: num -> num -> unit === num -> (num -> unit)
-  | t1 = base_typ ARROW t2 = typ_ { T_Func { from = t1; to_ = t2 } }
+  | t1 = base_typ ARROW t2 = typ_ { T_Func { context = []; from = t1; to_ = t2 } }
+  | t1 = base_typ LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK ARROW t2 = typ_ { T_Func { context = ctx; from = t1; to_ = t2 } }
 
 base_typ:
   | KW_NUM { T_Num }

@@ -1,3 +1,4 @@
+(* TODO: Parameterize these structs with the coeffect type *)
 module Ast = struct
   type prog = expr
 
@@ -6,6 +7,7 @@ module Ast = struct
     | T_Bool
     | T_Unit
     | T_Func of {
+        context : (id * typ) list;
         from : typ;
         to_ : typ;
       }
@@ -78,6 +80,7 @@ module ET = struct
     | T_Bool
     | T_Unit
     | T_Func of {
+        context : (id * typ) list;
         from : typ;
         to_ : typ;
       }
