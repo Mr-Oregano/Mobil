@@ -19,7 +19,7 @@ let usage_and_exit () =
 (* Driver *)
 let _ =
   let argc = Array.length Sys.argv in
-  if argc < 1 then usage_and_exit ()
+  if argc < 2 then usage_and_exit ()
   else
     let _ = In_channel.with_open_text Sys.argv.(1) In_channel.input_all |> interpret in
     print_endline "Finished parsing with no errors..."
