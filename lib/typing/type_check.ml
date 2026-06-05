@@ -53,10 +53,16 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
       let rs, context' =
         match snd body' with
         | T_Marsh { context = context'; typ } ->
+            (* TODO: This is not entirely correct, it enforces order when it shouldn't need to *)
+            (* TODO: This also fails if the contexts are of different sizes! This might be fine *)
             List.map_and_foldl
               (fun rs ((x, expr), (x', typ')) ->
                 let r_i, expr' = type_check_expr ctx expr in
-                let () = assert_msg (x = x' && snd expr' <= typ') "" in
+                let () =
+                  assert_msg
+                    (x = x' && snd expr' <= typ')
+                    (sprintf "Expected '%s' to be type '%s'" x (type_to_string typ'))
+                in
                 (r_i @ rs, (x, expr')))
               r (List.combine context context')
         | _ -> failwith "Expected marshaled type"
@@ -225,11 +231,14 @@ and type_check_type (ctx : Context.t) (typ : Ast.typ) =
 (* Subsumption *)
 and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
   match t1 with
-  | T_Func { from; to_ } -> (
+  | T_Func { context; from; to_ } -> (
       match t2 with
       (* Note, subsumption on functions is contravariant with respect to input types 
          and covariant with respect to output types *)
-      | T_Func { from = from'; to_ = to_' } -> from' <= from && to_ <= to_'
+      | T_Func { context = context'; from = from'; to_ = to_' } ->
+          let r = Coeffect.from_ident_type_pairs (List.to_seq context) in
+          let r' = Coeffect.from_ident_type_pairs (List.to_seq context') in
+          from' <= from && to_ <= to_' && Coeffect.(r <= r')
       | _ -> false)
   | T_Rec es -> (
       (* A record is a subtype of another if it is a superset 
