@@ -9,6 +9,14 @@ module Ast = struct
         from : typ;
         to_ : typ;
       }
+    | T_Chan of {
+        context : (id * typ) list;
+        typ : typ;
+      }
+    | T_Marsh of {
+        context : (id * typ) list;
+        typ : typ;
+      }
     | T_Rec of (id * typ) list
 
   and mobility =
@@ -21,7 +29,7 @@ module Ast = struct
         body : expr;
       }
     | E_Unmarshal of {
-        context : id list;
+        context : (id * expr) list;
         body : expr;
       }
     | E_Abs of {
@@ -73,6 +81,14 @@ module ET = struct
         from : typ;
         to_ : typ;
       }
+    | T_Chan of {
+        context : (id * typ) list;
+        typ : typ;
+      }
+    | T_Marsh of {
+        context : (id * typ) list;
+        typ : typ;
+      }
     | T_Rec of (id * typ) list
 
   and mobility = Ast.mobility
@@ -84,7 +100,7 @@ module ET = struct
         body : expr;
       }
     | E_Unmarshal of {
-        context : id list;
+        context : (id * expr) list;
         body : expr;
       }
     | E_ChanSend of {

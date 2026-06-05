@@ -24,7 +24,7 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
         let ctx = make_node "[ ... ]" (List.map eval_id context) in
         make_node "E_Marshal" [ ctx; eval_expr body ]
     | E_Unmarshal { context; body } ->
-        let ctx = make_node "[ ... ]" (List.map eval_id context) in
+        let ctx = make_node "[ ... ]" (List.map (eval_ident_expr_pair "<coeff>") context) in
         make_node "E_Unmarshal" [ ctx; eval_expr body ]
     | E_Abs { param; body } -> make_node "E_Abs" [ eval_param param; eval_expr body ]
     | E_If { cond; if_; else_ } ->
@@ -58,9 +58,7 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | E_Var v -> make_leaf (sprintf "E_Var (%s)" v)
     | E_Num n -> make_leaf (sprintf "E_Num (%s)" (Int.to_string n))
     | E_Bool b -> make_leaf (sprintf "E_Bool (%s)" (Bool.to_string b))
-    | E_Rec es ->
-        let eval_entry = fun (id, v) -> make_node "<entry>" [ eval_id id; eval_expr v ] in
-        make_node "E_Rec { ... }" (List.map eval_entry es)
+    | E_Rec es -> make_node "E_Rec { ... }" (List.map (eval_ident_expr_pair "<entry>") es)
     | E_Unit -> make_leaf (sprintf "E_Unit")
   and eval_mobility (m : Ast.mobility) =
     match m with M_Mobile -> make_leaf "M_Mobile" | M_iMobile -> make_leaf "M_iMobile"
@@ -70,10 +68,16 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | T_Unit -> make_leaf "T_Unit"
     | T_Bool -> make_leaf "T_Bool"
     | T_Func { from; to_ } -> make_node "T_Func" [ eval_typ from; make_leaf "->"; eval_typ to_ ]
-    | T_Rec es ->
-        let eval_entry = fun (id, t) -> make_node "<entry>" [ eval_id id; eval_typ t ] in
-        make_node "T_Rec { ... }" (List.map eval_entry es)
-  and eval_param ((id, typ_) : Ast.param) = make_node "<param>" [ eval_id id; eval_typ typ_ ]
+    | T_Chan { context; typ } ->
+        let context' = make_node "[ ... ]" (List.map (eval_ident_type_pair "<coeff>") context) in
+        make_node "T_Chan" [ context'; eval_typ typ ]
+    | T_Marsh { context; typ } ->
+        let context' = make_node "[ ... ]" (List.map (eval_ident_type_pair "<coeff>") context) in
+        make_node "T_Marsh" [ context'; eval_typ typ ]
+    | T_Rec es -> make_node "T_Rec { ... }" (List.map (eval_ident_type_pair "<entry>") es)
+  and eval_param (v : Ast.param) = eval_ident_type_pair "<param>" v
+  and eval_ident_expr_pair name (id, v) = make_node name [ eval_id id; eval_expr v ]
+  and eval_ident_type_pair name (id, typ_) = make_node name [ eval_id id; eval_typ typ_ ]
   and eval_id (i : Ast.id) = make_leaf (sprintf "ID (%s)" i) in
 
   let () = outs "digraph { ordering=\"out\" " in

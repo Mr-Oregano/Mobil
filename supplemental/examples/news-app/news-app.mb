@@ -26,7 +26,7 @@ let serverMain = \(u: unit) ->
     #   - Unmarshal provides 'db' which is compatible with the coeffect
     #   - The resulting code is of type (unit -> num) and can be executed on the server, 'db' will by dynamically rebound
     # 
-    let code = unmarshal [ db ] (c2s_chan ?) in
+    let code = unmarshal [ db: db ] (c2s_chan ?) in
 
     # Execute the code that we received
     let results = code () in

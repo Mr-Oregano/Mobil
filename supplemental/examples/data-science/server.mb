@@ -5,7 +5,7 @@ let imobile db = () in     # <--- Servers may have local instance to db
 let imobile Mkit = () in   # <--- Servers may have local instance to math library
 
 # Block and wait for code from client
-let code = unmarshal [ db, Mkit, Arrays ] (request_chan ?) in
+let code = unmarshal [ db: db, Mkit: Mkit, Arrays: Arrays ] (request_chan ?) in
 
 # Execute the client code
 let results = code () in

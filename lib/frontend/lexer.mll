@@ -19,6 +19,8 @@ rule read = parse
   | "false"          { KW_FALSE }
   | "let"            { KW_LET }
   | "in"             { KW_IN }
+  | "chan"           { KW_CHAN }
+  | "marsh"          { KW_MARSH }
   | "marshal"        { KW_MARSHAL }
   | "unmarshal"      { KW_UNMARSHAL }
   | "mobile"         { KW_MOBILE }

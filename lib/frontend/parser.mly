@@ -14,6 +14,8 @@
 %token KW_FALSE
 %token KW_LET 
 %token KW_IN 
+%token KW_CHAN 
+%token KW_MARSH
 %token KW_MARSHAL 
 %token KW_UNMARSHAL 
 %token KW_MOBILE
@@ -46,13 +48,12 @@ prog:
 // ========== Types ========== 
 typ_:
   | t = base_typ { t }
-  | LBRACE ts = separated_list(COMMA, record_type_entry) RBRACE { T_Rec ts }
+  | KW_CHAN  LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK t = typ_ { T_Chan { context = ctx; typ = t } }
+  | KW_MARSH LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK t = typ_ { T_Marsh { context = ctx; typ = t } }
+  | LBRACE ts = separated_list(COMMA, ident_type_pair) RBRACE { T_Rec ts }
 
 //   Right-associative function types: num -> num -> unit === num -> (num -> unit)
   | t1 = base_typ ARROW t2 = typ_ { T_Func { from = t1; to_ = t2 } }
-
-record_type_entry:
-  | x = IDENT COLON t = typ_ { (x, t) }
 
 base_typ:
   | KW_NUM { T_Num }
@@ -72,7 +73,7 @@ expr:
 marsh_expr:
   | e = abs_expr { e }
   | KW_MARSHAL LBRACK ctx = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Marshal { context = ctx; body = e } }
-  | KW_UNMARSHAL LBRACK ctx = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Unmarshal { context = ctx; body = e } }
+  | KW_UNMARSHAL LBRACK ctx = separated_list(COMMA, ident_expr_pair) RBRACK e = marsh_expr { E_Unmarshal { context = ctx; body = e } }
 
 abs_expr:
   | e = cmpnd_expr { e }
@@ -116,11 +117,14 @@ simple:
   | v = IDENT { E_Var v }
   | n = NUM { E_Num n }
   | e = simple PERIOD id = IDENT { E_Access (e, id) }
-  | LBRACE es = separated_list(COMMA, record_value_entry) RBRACE { E_Rec es }
+  | LBRACE es = separated_list(COMMA, ident_expr_pair) RBRACE { E_Rec es }
   | KW_TRUE { E_Bool true }
   | KW_FALSE { E_Bool false }
   | UNIT { E_Unit }
   | LPAREN e = expr RPAREN { e }
 
-record_value_entry:
+ident_type_pair:
+  | x = IDENT COLON t = typ_ { (x, t) }
+
+ident_expr_pair:
   | x = IDENT COLON e = expr { (x, e) }

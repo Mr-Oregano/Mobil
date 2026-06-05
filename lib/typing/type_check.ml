@@ -8,6 +8,8 @@ let rec type_to_string (typ : ET.typ) =
   | T_Bool -> "bool"
   | T_Unit -> "unit"
   | T_Func { from; to_ } -> sprintf "%s -> %s" (type_to_string from) (type_to_string to_)
+  | T_Chan { context; typ } -> failwith "Unimplemented"
+  | T_Marsh { context; typ } -> failwith "Unimplemented"
   | T_Rec es ->
       let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
       let es_str = String.concat ", " (List.map entry_to_string es) in
@@ -120,6 +122,8 @@ and type_check_type (ctx : Context.t) (typ : Ast.typ) =
       let from' = type_check_type ctx from in
       let to_' = type_check_type ctx to_ in
       ET.T_Func { from = from'; to_ = to_' }
+  | T_Chan { context; typ } -> failwith "Unimplemented"
+  | T_Marsh { context; typ } -> failwith "Unimplemented"
   | T_Rec es ->
       let es' = List.map (fun (id, typ) -> (id, type_check_type ctx typ)) es in
       ET.T_Rec es'
