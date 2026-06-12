@@ -7,16 +7,16 @@ module Ast = struct
     | T_Bool
     | T_Unit
     | T_Func of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         from : typ;
         to_ : typ;
       }
     | T_Chan of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         typ : typ;
       }
     | T_Marsh of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         typ : typ;
       }
     | T_Rec of (id * typ) list
@@ -27,11 +27,11 @@ module Ast = struct
 
   and expr =
     | E_Marshal of {
-        context : id list;
+        rebinds : id list;
         body : expr;
       }
     | E_Unmarshal of {
-        context : (id * expr) list;
+        rebinds : (id * expr) list;
         body : expr;
       }
     | E_Abs of {
@@ -80,16 +80,16 @@ module ET = struct
     | T_Bool
     | T_Unit
     | T_Func of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         from : typ;
         to_ : typ;
       }
     | T_Chan of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         typ : typ;
       }
     | T_Marsh of {
-        context : (id * typ) list;
+        coeff : (id * typ) list;
         typ : typ;
       }
     | T_Rec of (id * typ) list
@@ -99,11 +99,11 @@ module ET = struct
 
   and _expr_desc =
     | E_Marshal of {
-        context : id list;
+        rebinds : id list;
         body : expr;
       }
     | E_Unmarshal of {
-        context : (id * expr) list;
+        rebinds : (id * expr) list;
         body : expr;
       }
     | E_ChanSend of {

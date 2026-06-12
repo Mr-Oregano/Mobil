@@ -20,11 +20,11 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
 
   let rec eval_expr (e : Ast.expr) =
     match e with
-    | E_Marshal { context; body } ->
-        let ctx = make_node "[ ... ]" (List.map eval_id context) in
+    | E_Marshal { rebinds; body } ->
+        let ctx = make_node "[ ... ]" (List.map eval_id rebinds) in
         make_node "E_Marshal" [ ctx; eval_expr body ]
-    | E_Unmarshal { context; body } ->
-        let ctx = make_node "[ ... ]" (List.map (eval_ident_expr_pair "<coeff>") context) in
+    | E_Unmarshal { rebinds; body } ->
+        let ctx = make_node "[ ... ]" (List.map (eval_ident_expr_pair "<entry>") rebinds) in
         make_node "E_Unmarshal" [ ctx; eval_expr body ]
     | E_Abs { param; body } -> make_node "E_Abs" [ eval_param param; eval_expr body ]
     | E_If { cond; if_; else_ } ->
@@ -63,17 +63,19 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
   and eval_mobility (m : Ast.mobility) =
     match m with M_Mobile -> make_leaf "M_Mobile" | M_iMobile -> make_leaf "M_iMobile"
   and eval_typ (t : Ast.typ) =
+    let make_coeff coeff = make_node "[ ... ]" (List.map (eval_ident_type_pair "<entry>") coeff) in
     match t with
     | T_Num -> make_leaf "T_Num"
     | T_Unit -> make_leaf "T_Unit"
     | T_Bool -> make_leaf "T_Bool"
-    | T_Func { from; to_ } -> make_node "T_Func" [ eval_typ from; make_leaf "->"; eval_typ to_ ]
-    | T_Chan { context; typ } ->
-        let context' = make_node "[ ... ]" (List.map (eval_ident_type_pair "<coeff>") context) in
-        make_node "T_Chan" [ context'; eval_typ typ ]
-    | T_Marsh { context; typ } ->
-        let context' = make_node "[ ... ]" (List.map (eval_ident_type_pair "<coeff>") context) in
-        make_node "T_Marsh" [ context'; eval_typ typ ]
+    | T_Func { coeff; from; to_ } ->
+        let children =
+          if List.is_empty coeff then [ eval_typ from; make_leaf "->"; eval_typ to_ ]
+          else [ eval_typ from; make_coeff coeff; make_leaf "->"; eval_typ to_ ]
+        in
+        make_node "T_Func" children
+    | T_Chan { coeff; typ } -> make_node "T_Chan" [ make_coeff coeff; eval_typ typ ]
+    | T_Marsh { coeff; typ } -> make_node "T_Marsh" [ make_coeff coeff; eval_typ typ ]
     | T_Rec es -> make_node "T_Rec { ... }" (List.map (eval_ident_type_pair "<entry>") es)
   and eval_param (v : Ast.param) = eval_ident_type_pair "<param>" v
   and eval_ident_expr_pair name (id, v) = make_node name [ eval_id id; eval_expr v ]

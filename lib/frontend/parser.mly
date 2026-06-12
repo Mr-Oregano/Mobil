@@ -46,21 +46,22 @@ prog:
   | e = expr EOF { e }
 
 // ========== Types ========== 
-typ_:
+typ:
   | t = base_typ { t }
-  | KW_CHAN  LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK t = typ_ { T_Chan { context = ctx; typ = t } }
-  | KW_MARSH LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK t = typ_ { T_Marsh { context = ctx; typ = t } }
+  | KW_CHAN  LBRACK r = separated_list(COMMA, ident_type_pair) RBRACK t = typ { T_Chan { coeff = r; typ = t } }
+  | KW_MARSH LBRACK r = separated_list(COMMA, ident_type_pair) RBRACK t = typ { T_Marsh { coeff = r; typ = t } }
   | LBRACE ts = separated_list(COMMA, ident_type_pair) RBRACE { T_Rec ts }
 
 //   Right-associative function types: num -> num -> unit === num -> (num -> unit)
-  | t1 = base_typ ARROW t2 = typ_ { T_Func { context = []; from = t1; to_ = t2 } }
-  | t1 = base_typ LBRACK ctx = separated_list(COMMA, ident_type_pair) RBRACK ARROW t2 = typ_ { T_Func { context = ctx; from = t1; to_ = t2 } }
+  | t1 = base_typ 
+    r = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) ARROW 
+    t2 = typ { T_Func { coeff = r; from = t1; to_ = t2 } }
 
 base_typ:
   | KW_NUM { T_Num }
   | KW_BOOL { T_Bool }
   | KW_UNIT { T_Unit }
-  | LPAREN t = typ_ RPAREN { t }
+  | LPAREN t = typ RPAREN { t }
 
 // Misc
 binder:
@@ -73,14 +74,14 @@ expr:
 
 marsh_expr:
   | e = abs_expr { e }
-  | KW_MARSHAL LBRACK ctx = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Marshal { context = ctx; body = e } }
-  | KW_UNMARSHAL LBRACK ctx = separated_list(COMMA, ident_expr_pair) RBRACK e = marsh_expr { E_Unmarshal { context = ctx; body = e } }
+  | KW_MARSHAL LBRACK rbs = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Marshal { rebinds = rbs; body = e } }
+  | KW_UNMARSHAL LBRACK rbs = separated_list(COMMA, ident_expr_pair) RBRACK e = marsh_expr { E_Unmarshal { rebinds = rbs; body = e } }
 
 abs_expr:
   | e = cmpnd_expr { e }
 
 //   Allow nested lambda abstraction: \(x: num) -> \(y: num) -> x + y === \(x: num) -> (\(y: num) -> x + y)
-  | BACKSLASH LPAREN param_id = IDENT COLON param_typ = typ_ RPAREN ARROW e = abs_expr 
+  | BACKSLASH LPAREN param_id = IDENT COLON param_typ = typ RPAREN ARROW e = abs_expr 
         { E_Abs { param = (param_id, param_typ); body = e } }
 
 cmpnd_expr:
@@ -125,7 +126,7 @@ simple:
   | LPAREN e = expr RPAREN { e }
 
 ident_type_pair:
-  | x = IDENT COLON t = typ_ { (x, t) }
+  | x = IDENT COLON t = typ { (x, t) }
 
 ident_expr_pair:
   | x = IDENT COLON e = expr { (x, e) }

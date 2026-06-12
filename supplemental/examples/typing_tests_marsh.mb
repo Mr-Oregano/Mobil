@@ -1,0 +1,32 @@
+
+let foo1 = \(c: chan [] num) ->
+    let p = marshal [] 9 in
+    c ! p
+in
+
+let print = \(n: num) -> () in
+
+let test = \(n: num) -> 
+    let _ = print n in
+    n
+in
+
+let foo2 = \(c: chan [ print: num -> unit, test: num [ print: num -> unit ] -> num ] num) ->
+    # Marshaling and sending...
+    let p = marshal [ ] (test 9) in
+    let _ = c ! p in
+
+    # Receiving and unmarshaling...
+    let p_recv = c ? in
+    let n = unmarshal [ print: print, test: test ] p_recv in
+    # let n = unmarshal [ test: test, print: print ] p_recv in # Can swap the rebindables
+    # let n = unmarshal [ test: test, print: print, foo1: foo1 ] p_recv in # Can have more rebindables
+
+    # let n = unmarshal [ ] p_recv in # Error: missing requirements
+    # let n = unmarshal [ test: test ] p_recv in # Error: missing requirements
+    # let n = unmarshal [ print: print, test: 9 ] p_recv in # Error: invalid type
+    # let n = unmarshal [ test: test, print: print, print: print ] p_recv in # Error: duplicate
+    ()
+in
+
+()

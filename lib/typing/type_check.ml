@@ -4,27 +4,32 @@ open Printf
 open List_ext
 
 let assert_msg cond msg = if not cond then failwith msg
+
+let rec assert_no_duplicates xs msg_func =
+  match xs with
+  | [] -> ()
+  | (id, _) :: xs ->
+      if List.mem_assoc id xs then failwith (msg_func id) else assert_no_duplicates xs msg_func
+
 let ( @ ) = Coeffect.( @ )
 
 let rec type_to_string (typ : ET.typ) =
   (* TODO: Ideally restrict the total width of the string to a fixed amount of characters *)
+  let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
+  let entries_to_string sep es = String.concat sep (List.map entry_to_string es) in
   match typ with
   | T_Num -> "num"
   | T_Bool -> "bool"
   | T_Unit -> "unit"
-  | T_Func { from; to_ } -> sprintf "%s -> %s" (type_to_string from) (type_to_string to_)
-  | T_Chan { context; typ } ->
-      let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
-      let es_str = String.concat ", " (List.map entry_to_string context) in
-      sprintf "chan [ %s ] %s" es_str (type_to_string typ)
-  | T_Marsh { context; typ } ->
-      let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
-      let es_str = String.concat ", " (List.map entry_to_string context) in
-      sprintf "marsh [ %s ] %s" es_str (type_to_string typ)
-  | T_Rec es ->
-      let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
-      let es_str = String.concat ", " (List.map entry_to_string es) in
-      sprintf "{ %s }" es_str
+  | T_Func { coeff; from; to_ } ->
+      let from_str = type_to_string from in
+      let to_str = type_to_string to_ in
+      sprintf "%s [ %s ] -> %s" from_str (entries_to_string ", " coeff) to_str
+  | T_Chan { coeff; typ } ->
+      sprintf "chan [ %s ] %s" (entries_to_string ", " coeff) (type_to_string typ)
+  | T_Marsh { coeff; typ } ->
+      sprintf "marsh [ %s ] %s" (entries_to_string ", " coeff) (type_to_string typ)
+  | T_Rec es -> sprintf "{ %s }" (entries_to_string ", " es)
 
 let rec type_check (prog : Ast.prog) =
   let ctx = Context.empty in
@@ -32,58 +37,95 @@ let rec type_check (prog : Ast.prog) =
 
 and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
   match expr with
-  | E_Marshal { context; body } ->
+  | E_Marshal { rebinds; body } ->
+      (* Assert that there are no duplicate IDs in the rebindables list *)
+      let () =
+        assert_no_duplicates
+          (List.map (fun id -> (id, ())) rebinds)
+          (fun id -> sprintf "Duplicate member '%s' in marshal expression" id)
+      in
       let r, body' = type_check_expr ctx body in
-      let context' =
+      let rebinds_with_types =
         List.map
           (fun v ->
             match Context.get_var ctx v with
             | Some t -> (v, t)
             | None -> failwith "Unbound variable: '%s'")
-          context
+          rebinds
       in
-      (* We convert the marshal context into our Coeffect type to catch
+      (* We convert the marshal rebinds into our Coeffect type to catch
          any errors, like in the theory! *)
-      let s = Coeffect.from_ident_type_pairs (List.to_seq context') in
-      let coeffect = Coeffect.get_vars (r @ s) |> List.of_seq in
-      ( Coeffect.empty,
-        (ET.E_Marshal { context; body = body' }, T_Marsh { context = coeffect; typ = snd body' }) )
-  | E_Unmarshal { context; body } ->
+      let s = Coeffect.from_ident_type_pairs (List.to_seq rebinds_with_types) in
+      let coeff = Coeffect.get_vars (r @ s) |> List.of_seq in
+      (Coeffect.empty, (ET.E_Marshal { rebinds; body = body' }, T_Marsh { coeff; typ = snd body' }))
+  | E_Unmarshal { rebinds; body } ->
+      (* Assert that there are no duplicate IDs in the context *)
+      let () =
+        assert_no_duplicates rebinds (fun id ->
+            sprintf "Duplicate member '%s' in unmarshal expression" id)
+      in
       let r, body' = type_check_expr ctx body in
-      let rs, context' =
+      let rs, rebinds' =
         match snd body' with
-        | T_Marsh { context = context'; typ } ->
-            (* TODO: This is not entirely correct, it enforces order when it shouldn't need to *)
-            (* TODO: This also fails if the contexts are of different sizes! This might be fine *)
-            List.map_and_foldl
-              (fun rs ((x, expr), (x', typ')) ->
-                let r_i, expr' = type_check_expr ctx expr in
-                let () =
-                  assert_msg
-                    (x = x' && snd expr' <= typ')
-                    (sprintf "Expected '%s' to be type '%s'" x (type_to_string typ'))
-                in
-                (r_i @ rs, (x, expr')))
-              r (List.combine context context')
+        | T_Marsh { coeff; typ } ->
+            (* A lot of things to do that we can finish off in one operation:
+                 - We need to type check all rebind expressions 
+                 - We need to convert these expressions to their ET type
+                 - We need to ensure that all coeffect mappings have an associated expression
+                 - We need to ensure that each expression associated with a coeffect satisfies the type
+                 - We need to combine all our coeffects (graded type)
+            *)
+            let (rs, coeff'), rebinds' =
+              List.map_and_foldl
+                (fun (rs, coeff') (id, expr) ->
+                  let r_i, expr' = type_check_expr ctx expr in
+                  let () =
+                    (* If the id exists in our coeff, ensure the types work! *)
+                    match List.assoc_opt id coeff' with
+                    | Some coeff_typ ->
+                        assert_msg
+                          (snd expr' <= coeff_typ)
+                          (sprintf "Expected '%s' to be type '%s'" id (type_to_string coeff_typ))
+                    | None -> ()
+                  in
+                  (* We remove the ID from our working coeffect if it exists *)
+                  ((r_i @ rs, List.remove_assoc id coeff'), (id, expr')))
+                (r, coeff) rebinds
+            in
+            (* Ensure that there are no remaining requirements *)
+            let () =
+              assert_msg (List.is_empty coeff')
+                (sprintf "Missing some required rebindings: %s"
+                   (String.concat ", " (List.map (fun (id, _) -> id) coeff')))
+            in
+            (rs, rebinds')
         | _ -> failwith "Expected marshaled type"
       in
-      (rs, (ET.E_Unmarshal { context = context'; body = body' }, snd body'))
+      (rs, (ET.E_Unmarshal { rebinds = rebinds'; body = body' }, snd body'))
   | E_ChanSend { chan; package } ->
       let r, chan' = type_check_expr ctx chan in
       let s, package' =
         (* The chan expr must be of type 'T_Chan' with some coeffect 't' *)
         match snd chan' with
-        | T_Chan { context; typ } -> (
-            let _aux_fail () =
-              failwith (sprintf "Expected type '%s'" (type_to_string (ET.T_Marsh { context; typ })))
+        | T_Chan { coeff; typ } -> (
+            let _aux_fail t =
+              failwith
+                (sprintf "Expected type '%s' but got '%s'"
+                   (type_to_string (ET.T_Marsh { coeff; typ }))
+                   (type_to_string t))
             in
             let s, package' = type_check_expr ctx package in
 
             (* Now we must ensure that the argument is 'T_Marsh' with the same coeffect 't' *)
             match snd package' with
-            | T_Marsh { context = context'; typ = typ' } ->
-                if context' = context && typ' = typ then (s, package') else _aux_fail ()
-            | _ -> _aux_fail ())
+            | T_Marsh { coeff = coeff'; typ = typ' } as t ->
+                (* Allow subcoeffecting and subtyping here *)
+                (* TODO: Consider what it means semantically to do this? 
+                         The channel guarantees the dynamic rebindings in its coeff
+                         but what if the marsh doesn't need them all? What happens
+                         in the unmarshal end in the case of shadowing? *)
+                if t <= T_Marsh { coeff; typ } then (s, package') else _aux_fail t
+            | _ -> _aux_fail (snd package'))
         | _ -> failwith "Expected channel type"
       in
       (r @ s, (ET.E_ChanSend { chan = chan'; package = package' }, T_Unit))
@@ -91,10 +133,10 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
       let r, chan' = type_check_expr ctx chan in
       let s, package_type =
         match snd chan' with
-        | T_Chan { context; typ } -> (context, typ)
+        | T_Chan { coeff; typ } -> (coeff, typ)
         | _ -> failwith "Expected channel type"
       in
-      (r, (ET.E_ChanReceive chan', T_Marsh { context = s; typ = package_type }))
+      (r, (ET.E_ChanReceive chan', T_Marsh { coeff = s; typ = package_type }))
   | E_Abs { param; body } ->
       let param' = type_check_param ctx param in
       let ctx' = Context.add_var ctx param' in
@@ -105,7 +147,7 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
       ( r,
         ( ET.E_Abs { param = param'; body = body' },
           (* We capture the coeffect as latent context of this function *)
-          ET.T_Func { context = r_list; from = snd param'; to_ = snd body' } ) )
+          ET.T_Func { coeff = r_list; from = snd param'; to_ = snd body' } ) )
   | E_If { cond; if_; else_ } ->
       let r, cond' = type_check_expr ctx cond in
       let () =
@@ -150,9 +192,9 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
   | E_App (callee, arg) -> (
       let r, callee' = type_check_expr ctx callee in
       match snd callee' with
-      | T_Func { context; from; to_ } ->
+      | T_Func { coeff; from; to_ } ->
           (* Extract the latent coeffect 't' from the function type *)
-          let t = Coeffect.from_ident_type_pairs (List.to_seq context) in
+          let t = Coeffect.from_ident_type_pairs (List.to_seq coeff) in
           let s, arg' = type_check_expr ctx arg in
           let () =
             assert_msg
@@ -185,15 +227,8 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
   | E_Bool v -> (Coeffect.empty, (ET.E_Bool v, ET.T_Bool))
   | E_Unit -> (Coeffect.empty, (ET.E_Unit, T_Unit))
   | E_Rec es ->
-      let rec _aux_non_unique_opt xs =
-        match xs with
-        | [] -> ()
-        | (id, _) :: xs ->
-            if List.mem_assoc id xs then failwith (sprintf "Duplicate member '%s'" id)
-            else _aux_non_unique_opt xs
-      in
       (* Assert that there are no duplicate IDs in the record *)
-      let () = _aux_non_unique_opt es in
+      let () = assert_no_duplicates es (fun id -> sprintf "Duplicate member '%s' in record" id) in
       let rs, es' =
         List.map_and_foldl
           (fun rs (id, exp) ->
@@ -208,22 +243,28 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
 and type_check_param (ctx : Context.t) ((name, typ) : Ast.param) = (name, type_check_type ctx typ)
 
 and type_check_type (ctx : Context.t) (typ : Ast.typ) =
+  let type_check_coeff coeff =
+    (* Assert there are no duplicate IDs in coeff *)
+    let () = assert_no_duplicates coeff (fun id -> sprintf "Duplicate id '%s' in latent" id) in
+    List.map (fun (v, typ) -> (v, type_check_type ctx typ)) coeff
+  in
   match typ with
   | T_Num -> ET.T_Num
   | T_Bool -> ET.T_Bool
   | T_Unit -> ET.T_Unit
-  | T_Func { from; to_ } ->
+  | T_Func { coeff; from; to_ } ->
       let from' = type_check_type ctx from in
       let to_' = type_check_type ctx to_ in
-      ET.T_Func { context = []; from = from'; to_ = to_' }
-  | T_Chan { context; typ } ->
-      let context' = List.map (fun (v, typ) -> (v, type_check_type ctx typ)) context in
+      let coeff' = type_check_coeff coeff in
+      ET.T_Func { coeff = coeff'; from = from'; to_ = to_' }
+  | T_Chan { coeff; typ } ->
+      let coeff' = type_check_coeff coeff in
       let typ' = type_check_type ctx typ in
-      ET.T_Chan { context = context'; typ = typ' }
-  | T_Marsh { context; typ } ->
-      let context' = List.map (fun (v, typ) -> (v, type_check_type ctx typ)) context in
+      ET.T_Chan { coeff = coeff'; typ = typ' }
+  | T_Marsh { coeff; typ } ->
+      let coeff' = type_check_coeff coeff in
       let typ' = type_check_type ctx typ in
-      ET.T_Marsh { context = context'; typ = typ' }
+      ET.T_Marsh { coeff = coeff'; typ = typ' }
   | T_Rec es ->
       let es' = List.map (fun (id, typ) -> (id, type_check_type ctx typ)) es in
       ET.T_Rec es'
@@ -231,13 +272,13 @@ and type_check_type (ctx : Context.t) (typ : Ast.typ) =
 (* Subsumption *)
 and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
   match t1 with
-  | T_Func { context; from; to_ } -> (
+  | T_Func { coeff; from; to_ } -> (
       match t2 with
       (* Note, subsumption on functions is contravariant with respect to input types 
          and covariant with respect to output types *)
-      | T_Func { context = context'; from = from'; to_ = to_' } ->
-          let r = Coeffect.from_ident_type_pairs (List.to_seq context) in
-          let r' = Coeffect.from_ident_type_pairs (List.to_seq context') in
+      | T_Func { coeff = coeff'; from = from'; to_ = to_' } ->
+          let r = Coeffect.from_ident_type_pairs (List.to_seq coeff) in
+          let r' = Coeffect.from_ident_type_pairs (List.to_seq coeff') in
           from' <= from && to_ <= to_' && Coeffect.(r <= r')
       | _ -> false)
   | T_Rec es -> (
@@ -250,13 +291,13 @@ and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
               match List.assoc_opt id' es with None -> false | Some typ -> typ <= typ')
             es'
       | _ -> false)
-  | T_Marsh { context; typ } -> (
+  | T_Marsh { coeff; typ } -> (
       (* For a marshaled type, it must be covariant with its type
        and subcoeffecting must be satisfied *)
       match t2 with
-      | T_Marsh { context = context'; typ = typ' } ->
-          let r = Coeffect.from_ident_type_pairs (List.to_seq context) in
-          let r' = Coeffect.from_ident_type_pairs (List.to_seq context') in
+      | T_Marsh { coeff = coeff'; typ = typ' } ->
+          let r = Coeffect.from_ident_type_pairs (List.to_seq coeff) in
+          let r' = Coeffect.from_ident_type_pairs (List.to_seq coeff') in
           typ <= typ' && Coeffect.(r <= r')
       | _ -> false)
   | _ -> t1 = t2
