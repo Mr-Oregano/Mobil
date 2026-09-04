@@ -7,7 +7,6 @@ module Ast = struct
     | T_Bool
     | T_Unit
     | T_Func of {
-        coeff : (id * typ) list;
         from : typ;
         to_ : typ;
       }
@@ -21,15 +20,10 @@ module Ast = struct
       }
     | T_Rec of (id * typ) list
 
-  and mobility =
-    | M_Mobile
-    | M_iMobile
+  and expr = expr'
 
-  and expr =
-    | E_Marshal of {
-        rebinds : id list;
-        body : expr;
-      }
+  and expr' =
+    | E_Marshal of expr
     | E_Unmarshal of {
         rebinds : (id * expr) list;
         body : expr;
@@ -45,7 +39,6 @@ module Ast = struct
       }
     | E_Let of {
         binder : id option;
-        mobility : mobility;
         value : expr;
         body : expr;
       }
@@ -80,7 +73,6 @@ module ET = struct
     | T_Bool
     | T_Unit
     | T_Func of {
-        coeff : (id * typ) list;
         from : typ;
         to_ : typ;
       }
@@ -94,14 +86,10 @@ module ET = struct
       }
     | T_Rec of (id * typ) list
 
-  and mobility = Ast.mobility
-  and expr = _expr_desc * typ
+  and expr = expr' * typ
 
-  and _expr_desc =
-    | E_Marshal of {
-        rebinds : id list;
-        body : expr;
-      }
+  and expr' =
+    | E_Marshal of expr
     | E_Unmarshal of {
         rebinds : (id * expr) list;
         body : expr;
@@ -122,7 +110,6 @@ module ET = struct
       }
     | E_Let of {
         binder : id option;
-        mobility : mobility;
         value : expr;
         body : expr;
       }

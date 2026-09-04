@@ -18,8 +18,6 @@
 %token KW_MARSH
 %token KW_MARSHAL 
 %token KW_UNMARSHAL 
-%token KW_MOBILE
-%token KW_IMOBILE
 %token KW_NUM
 %token KW_BOOL
 %token KW_UNIT
@@ -48,14 +46,20 @@ prog:
 // ========== Types ========== 
 typ:
   | t = base_typ { t }
-  | KW_CHAN  LBRACK r = separated_list(COMMA, ident_type_pair) RBRACK t = typ { T_Chan { coeff = r; typ = t } }
-  | KW_MARSH LBRACK r = separated_list(COMMA, ident_type_pair) RBRACK t = typ { T_Marsh { coeff = r; typ = t } }
+  | KW_CHAN 
+    r = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) 
+    t = typ 
+    { T_Chan { coeff = r; typ = t } }
+  
+  | KW_MARSH 
+    r = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) 
+    t = typ 
+    { T_Marsh { coeff = r; typ = t } }
+  
   | LBRACE ts = separated_list(COMMA, ident_type_pair) RBRACE { T_Rec ts }
 
 //   Right-associative function types: num -> num -> unit === num -> (num -> unit)
-  | t1 = base_typ 
-    r = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) ARROW 
-    t2 = typ { T_Func { coeff = r; from = t1; to_ = t2 } }
+  | t1 = base_typ ARROW t2 = typ { T_Func { from = t1; to_ = t2 } }
 
 base_typ:
   | KW_NUM { T_Num }
@@ -74,29 +78,35 @@ expr:
 
 marsh_expr:
   | e = abs_expr { e }
-  | KW_MARSHAL LBRACK rbs = separated_list(COMMA, IDENT) RBRACK e = marsh_expr { E_Marshal { rebinds = rbs; body = e } }
-  | KW_UNMARSHAL LBRACK rbs = separated_list(COMMA, ident_expr_pair) RBRACK e = marsh_expr { E_Unmarshal { rebinds = rbs; body = e } }
+  | KW_MARSHAL e = marsh_expr { E_Marshal e }
+  | KW_UNMARSHAL 
+    rbs = loption(delimited(LBRACK, separated_list(COMMA, ident_expr_pair), RBRACK))
+    e = marsh_expr 
+    { E_Unmarshal { rebinds = rbs; body = e } }
 
 abs_expr:
   | e = cmpnd_expr { e }
 
 //   Allow nested lambda abstraction: \(x: num) -> \(y: num) -> x + y === \(x: num) -> (\(y: num) -> x + y)
-  | BACKSLASH LPAREN param_id = IDENT COLON param_typ = typ RPAREN ARROW e = abs_expr 
-        { E_Abs { param = (param_id, param_typ); body = e } }
+  | BACKSLASH LPAREN 
+    param_id = IDENT COLON 
+    param_typ = typ RPAREN ARROW 
+    e = abs_expr 
+    { E_Abs { param = (param_id, param_typ); body = e } }
 
 cmpnd_expr:
   | e = basic_expr { e }
-  | KW_LET m = mobility b = binder EQUALS v = expr KW_IN e = expr
-        { E_Let { binder = b; mobility = m; value = v; body = e } }
+  | KW_LET 
+    b = binder EQUALS 
+    v = expr KW_IN 
+    e = expr
+    { E_Let { binder = b; value = v; body = e } }
 
-  | KW_IF c = expr KW_THEN e1 = expr KW_ELSE e2 = expr
-        { E_If { cond = c; if_ = e1; else_ = e2 } }
-
-// Mobility defaults to imobile as that is the "safest"
-mobility:
-  | KW_MOBILE  { M_Mobile }
-  | KW_IMOBILE { M_iMobile }
-  |            { M_iMobile }
+  | KW_IF 
+    c = expr KW_THEN 
+    e1 = expr KW_ELSE 
+    e2 = expr
+    { E_If { cond = c; if_ = e1; else_ = e2 } }
 
 basic_expr:
   | e = app_expr { e }

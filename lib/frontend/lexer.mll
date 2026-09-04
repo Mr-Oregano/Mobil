@@ -23,8 +23,6 @@ rule read = parse
   | "marsh"          { KW_MARSH }
   | "marshal"        { KW_MARSHAL }
   | "unmarshal"      { KW_UNMARSHAL }
-  | "mobile"         { KW_MOBILE }
-  | "imobile"        { KW_IMOBILE }
   | "num"            { KW_NUM }
   | "bool"           { KW_BOOL }
   | "unit"           { KW_UNIT }

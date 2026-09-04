@@ -1,0 +1,31 @@
+
+let dummy_input = 69 in
+
+# Standard library provided by the language runtime.
+# Both the client and the server have this
+let std = 
+{
+    println: \(n: num) -> (),
+    readln:  \(u: unit) -> dummy_input
+}
+in
+
+# Client has some local function `foo` that does something
+let foo = \(n: num) -> 
+    std.println n
+in
+
+# Client marshals code using `foo`, `foo` will need to be provided by the server
+let m = marshal (foo 69) in
+
+# Server
+
+# Server uses it's own log function, perhaps one that preprends a timestamp
+let log = \(n: num) -> 
+    std.println (n + 69) 
+in
+
+# Server unmarshals code providing `foo`
+let u = unmarshal [ foo: \(n: num) -> log n ] m in
+
+()

@@ -7,7 +7,14 @@ let interpret (source : string) =
   let lexbuf = Lexing.from_string source in
   let ast = Parser.prog Lexer.read lexbuf in
   let () = Graphviz.eval_graphviz stdout ast in
-  let _ = Type_check.type_check ast in
+  let _ =
+    try
+      let et = Type_check.type_check ast in
+      Some et
+    with Failure msg ->
+      eprintf "%s\n" msg;
+      None
+  in
   ()
 
 let usage () = sprintf "Usage: %s <FILE>" Sys.argv.(0) |> prerr_endline

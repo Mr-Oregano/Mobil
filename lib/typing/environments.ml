@@ -1,6 +1,8 @@
 open Structs.ET
 open Printf
 
+let assert_msg cond msg = if not cond then failwith msg
+
 module Context = struct
   module IDMap = Map.Make (String)
 
@@ -35,31 +37,35 @@ module Coeffect = struct
     if not (map |> IDMap.mem id) then ()
     else failwith (Printf.sprintf "Already bound identifier '%s'" id)
 
-  let add_var ctx (id, typ) =
-    _assert_not_contains ctx id;
-    ctx |> IDMap.add id typ
+  let add_var coeff (id, typ) =
+    _assert_not_contains coeff id;
+    coeff |> IDMap.add id typ
 
-  let remove_var ctx name = ctx |> IDMap.remove name
-  let get_var ctx name = ctx |> IDMap.find_opt name
-  let get_vars ctx = IDMap.to_seq ctx
+  let remove_var coeff name = coeff |> IDMap.remove name
+
+  let remove_vars coeff names =
+    Seq.fold_left (fun coeff' name -> remove_var coeff' name) coeff names
+
+  let get_var coeff name = coeff |> IDMap.find_opt name
+  let get_entries coeff = IDMap.to_seq coeff
 
   (* Coeffect utilities *)
-  let ( <= ) ctx1 ctx2 =
+  let ( <= ) coeff1 coeff2 =
     IDMap.for_all
       (fun key value ->
-        match IDMap.find_opt key ctx2 with
+        match IDMap.find_opt key coeff2 with
         (* Would be interesting to see if we can use subtyping here
            but for now we stick to the theory, strict equality necessary *)
         | Some value' -> value = value'
         | None -> false)
-      ctx1
+      coeff1
 
-  let merge ctx1 ctx2 =
+  let merge coeff1 coeff2 =
     IDMap.union
       (fun v typ1 typ2 ->
         if typ1 <> typ2 then failwith (sprintf "Failed to merge coeffects, collision with '%s'" v)
         else Some typ1)
-      ctx1 ctx2
+      coeff1 coeff2
 
   let ( @ ) = merge
 
