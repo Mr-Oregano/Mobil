@@ -26,6 +26,7 @@ rule read = parse
   | "num"            { KW_NUM }
   | "bool"           { KW_BOOL }
   | "unit"           { KW_UNIT }
+  | "cnew"           { KW_CNEW }
   | "->"             { ARROW }
   | '('              { LPAREN }
   | ')'              { RPAREN }

@@ -1,31 +1,46 @@
 
-let dummy_input = 69 in
-
 # Standard library provided by the language runtime.
 # Both the client and the server have this
 let std = 
 {
     println: \(n: num) -> (),
-    readln:  \(u: unit) -> dummy_input
+    readln:  \(u: unit) -> let dummy_input = 69 in dummy_input
 }
 in
 
-# Client has some local function `foo` that does something
-let foo = \(n: num) -> 
-    std.println n
+# New channel is opened for communication, the channel guarantees specified requirements
+let c = cnew [ foo: num -> num ] num in
+
+################## Client and server are shared program ##################
+
+let client_main = \(u: unit) ->
+    # Client has some local function `foo` that does something
+    let foo = \(n: num) -> 
+        # Client-local implementation that has some debug print
+        let _ = std.println n in 
+        n
+    in
+
+    # Client marshals code using `foo`, `foo` will need to be provided by the server
+    let pkg = marshal (foo 69) in
+    let _ = c ! pkg in
+    ()
 in
 
-# Client marshals code using `foo`, `foo` will need to be provided by the server
-let m = marshal (foo 69) in
+let server_main = \(u: unit) ->
+    # Server uses it's own log function, perhaps one that preprends a timestamp
+    let log = \(n: num) -> 
+        let _ = std.println (n + 69) in
+        n + 69
+    in
 
-# Server
+    # Server opens its own channel for communication, the server guarantees specified requirements
+    let c_recv = cnew [ foo: num -> num ] num in
 
-# Server uses it's own log function, perhaps one that preprends a timestamp
-let log = \(n: num) -> 
-    std.println (n + 69) 
+    # Server unmarshals code providing `foo`
+    let pkg_ = c_recv ? in
+    let result = unmarshal [ foo: \(n: num) -> log n ] pkg_ in
+    ()
 in
-
-# Server unmarshals code providing `foo`
-let u = unmarshal [ foo: \(n: num) -> log n ] m in
 
 ()

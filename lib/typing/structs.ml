@@ -47,6 +47,10 @@ module Ast = struct
         package : expr;
       }
     | E_ChanReceive of expr
+    | E_NewChan of {
+        requirements : (id * typ) list;
+        typ : typ;
+      }
     | E_BinOp of (op * expr * expr)
     | E_App of (expr * expr)
     | E_Access of (expr * id)
@@ -99,6 +103,10 @@ module ET = struct
         package : expr;
       }
     | E_ChanReceive of expr
+    | E_NewChan of {
+        requirements : (id * typ) list;
+        typ : typ;
+      }
     | E_Abs of {
         param : param;
         body : expr;

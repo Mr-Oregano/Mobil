@@ -52,11 +52,9 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
             sprintf "Duplicate member '%s' in unmarshal expression" id)
       in
       let r, body' = type_check_expr ctx body in
-      let s, t, rebinds', typ =
+      let s, rebinds', typ =
         match snd body' with
         | T_Marsh { coeff; typ } ->
-            let t = Coeffect.from_ident_type_pairs (List.to_seq coeff) in
-
             (* A lot of things to do that we can finish off in one operation:
                  - We need to type check all rebind expressions 
                  - We need to convert these expressions to their ET type
@@ -88,10 +86,10 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
                 (sprintf "Missing some required rebindings: %s"
                    (String.concat ", " (List.map (fun (id, _) -> id) coeff')))
             in
-            (s, t, rebinds', typ)
+            (s, rebinds', typ)
         | _ -> failwith "Expected marshaled type"
       in
-      (r @ s @ t, (ET.E_Unmarshal { rebinds = rebinds'; body = body' }, typ))
+      (r @ s, (ET.E_Unmarshal { rebinds = rebinds'; body = body' }, typ))
   | E_ChanSend { chan; package } ->
       let s, chan' = type_check_expr ctx chan in
       let r, package' =
@@ -128,6 +126,12 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
         | _ -> failwith "Expected channel type"
       in
       (r, (ET.E_ChanReceive chan', T_Marsh { coeff = s; typ = package_type }))
+  | E_NewChan { requirements; typ } ->
+      let typ' = type_check_type typ in
+      let coeff' = type_check_coeff requirements in
+      ( Coeffect.empty,
+        (ET.E_NewChan { requirements = coeff'; typ = typ' }, T_Chan { coeff = coeff'; typ = typ' })
+      )
   | E_Abs { param; body } ->
       let param' = type_check_param ctx param in
       let ctx' = Context.add_var ctx param' in
@@ -212,10 +216,9 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
   | E_Var v -> (
       match Context.get_var ctx v with
       | None -> failwith (sprintf "Unbound variable: '%s'" v)
-      | Some t -> (
-          match is_mobile t with
-          | Some r -> (r, (ET.E_Var v, t))
-          | None -> (Coeffect.singleton v t, (ET.E_Var v, t))))
+      | Some t ->
+          if is_mobile t then (Coeffect.empty, (ET.E_Var v, t))
+          else (Coeffect.singleton v t, (ET.E_Var v, t)))
   | E_Num n -> (Coeffect.empty, (ET.E_Num n, ET.T_Num))
   | E_Bool v -> (Coeffect.empty, (ET.E_Bool v, ET.T_Bool))
   | E_Unit -> (Coeffect.empty, (ET.E_Unit, T_Unit))
@@ -233,33 +236,33 @@ and type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
       let tys = List.map (fun (id, exp) -> (id, snd exp)) es' in
       (rs, (ET.E_Rec es', T_Rec tys))
 
-and type_check_param (ctx : Context.t) ((name, typ) : Ast.param) = (name, type_check_type ctx typ)
+and type_check_param (ctx : Context.t) ((name, typ) : Ast.param) = (name, type_check_type typ)
 
-and type_check_type (ctx : Context.t) (typ : Ast.typ) =
-  let type_check_coeff coeff =
-    (* Assert there are no duplicate IDs in coeff *)
-    let () = assert_no_duplicates coeff (fun id -> sprintf "Duplicate id '%s' in latent" id) in
-    List.map (fun (v, typ) -> (v, type_check_type ctx typ)) coeff
-  in
+and type_check_type (typ : Ast.typ) =
   match typ with
   | T_Num -> ET.T_Num
   | T_Bool -> ET.T_Bool
   | T_Unit -> ET.T_Unit
   | T_Func { from; to_ } ->
-      let from' = type_check_type ctx from in
-      let to_' = type_check_type ctx to_ in
+      let from' = type_check_type from in
+      let to_' = type_check_type to_ in
       ET.T_Func { from = from'; to_ = to_' }
   | T_Chan { coeff; typ } ->
       let coeff' = type_check_coeff coeff in
-      let typ' = type_check_type ctx typ in
+      let typ' = type_check_type typ in
       ET.T_Chan { coeff = coeff'; typ = typ' }
   | T_Marsh { coeff; typ } ->
       let coeff' = type_check_coeff coeff in
-      let typ' = type_check_type ctx typ in
+      let typ' = type_check_type typ in
       ET.T_Marsh { coeff = coeff'; typ = typ' }
   | T_Rec es ->
-      let es' = List.map (fun (id, typ) -> (id, type_check_type ctx typ)) es in
+      let es' = List.map (fun (id, typ) -> (id, type_check_type typ)) es in
       ET.T_Rec es'
+
+and type_check_coeff coeff =
+  (* Assert there are no duplicate IDs in coeff *)
+  let () = assert_no_duplicates coeff (fun id -> sprintf "Duplicate id '%s' in latent" id) in
+  List.map (fun (x, typ) -> (x, type_check_type typ)) coeff
 
 (* Subsumption *)
 and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
@@ -284,8 +287,5 @@ and ( <= ) (t1 : ET.typ) (t2 : ET.typ) =
   | _ -> t1 = t2
 
 (* Utility for var access, check if is marsh (mobile) type and return boxed coeffect *)
-and is_mobile (typ : ET.typ) : Coeffect.t option =
-  match typ with
-  | T_Num | T_Bool | T_Unit -> Some Coeffect.empty
-  | T_Marsh { coeff; typ } -> Some (Coeffect.from_ident_type_pairs (List.to_seq coeff))
-  | _ -> None
+and is_mobile (typ : ET.typ) : bool =
+  match typ with T_Num | T_Bool | T_Unit -> true | T_Marsh { coeff; typ } -> true | _ -> false

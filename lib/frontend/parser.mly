@@ -21,6 +21,7 @@
 %token KW_NUM
 %token KW_BOOL
 %token KW_UNIT
+%token KW_CNEW
 
 %token LPAREN LBRACE LBRACK
 %token RPAREN RBRACE RBRACK
@@ -129,6 +130,7 @@ simple:
   | v = IDENT { E_Var v }
   | n = NUM { E_Num n }
   | e = simple PERIOD id = IDENT { E_Access (e, id) }
+  | KW_CNEW rqs = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) t = typ { E_NewChan { requirements = rqs; typ = t } }
   | LBRACE es = separated_list(COMMA, ident_expr_pair) RBRACE { E_Rec es }
   | KW_TRUE { E_Bool true }
   | KW_FALSE { E_Bool false }

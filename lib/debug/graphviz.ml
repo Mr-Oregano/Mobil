@@ -48,6 +48,11 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | E_ChanSend { chan; package } ->
         make_node "E_ChanSend" [ eval_expr chan; make_leaf "!"; eval_expr package ]
     | E_ChanReceive e -> make_node "E_ChanReceive" [ eval_expr e; make_leaf "?" ]
+    | E_NewChan { requirements; typ } ->
+        let requirements' =
+          make_node "[ ... ]" (List.map (eval_ident_type_pair "<entry>") requirements)
+        in
+        make_node "E_NewChan" [ requirements'; eval_typ typ ]
     | E_BinOp (op, e1, e2) ->
         make_node "E_BinOp" [ eval_expr e1; make_leaf (op_to_string op); eval_expr e2 ]
     | E_App (callee, arg) -> make_node "E_App" [ eval_expr callee; eval_expr arg ]
