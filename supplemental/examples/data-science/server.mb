@@ -1,0 +1,50 @@
+################### SERVER ###################
+
+# TODO: Might be better to have actual list types
+let Arrays = { firstn: \(n: num) -> \(arr: num) -> arr } in
+let db = { query: \(u: unit) -> 420 } in
+let Mkit = 
+{
+    cov: \(n: num) -> n,
+    transpose: \(n: num) -> n,
+    mean: \(n: num) -> n,
+    eig: \(n: num) -> n,
+    dot: \(n1: num) -> \(n2: num) -> n1,
+    kmeans2: \(n1: num) -> \(n2: num) -> n1
+} 
+in
+
+# Create a request channel and a response channel for communication with the client
+
+# Code received through request channel channel needs to be guaranteed the necessary (unserializeable) resources
+# This is being sent to external code so type check cannot fully guarantee safety, 
+# Runtime provides a framework for catching these errors. 
+let request_chan = cnew 
+[
+    Arrays: { firstn: num -> num -> num },
+    db: { query: unit -> num },
+    Mkit: {
+        cov: num -> num,
+        transpose: num -> num,
+        mean: num -> num,
+        eig: num -> num,
+        dot: num -> num -> num,
+        kmeans2: num -> num -> num
+    }
+] unit -> num 
+in
+
+# Response channel does not require any resources, it is only used to send computed results to the client
+let response_chan = cnew num in
+
+# Block and wait for code from client
+let code = unmarshal [ db: db, Mkit: Mkit, Arrays: Arrays ] (request_chan ?) in
+
+# Execute the client code
+let results = code () in
+
+# Marshal the results
+let package = marshal results in 
+
+# Respond with the results
+response_chan ! package

@@ -1,0 +1,60 @@
+
+################### CLIENT ###################
+
+# Client program wants to do heavy processing on a large amount of data
+# and retrieve filtered results for further, local processing
+
+# TODO: Might be better to have actual list types
+let Arrays = { firstn: \(n: num) -> \(arr: num) -> arr } in
+let db = { query: \(u: unit) -> 69 } in
+let Mkit = 
+{
+    cov: \(n: num) -> n,
+    transpose: \(n: num) -> n,
+    mean: \(n: num) -> n,
+    eig: \(n: num) -> n,
+    dot: \(n1: num) -> \(n2: num) -> n1,
+    kmeans2: \(n1: num) -> \(n2: num) -> n1
+} 
+in
+
+# Marshal code using the resources that will be dynamically rebound
+let package = (marshal (\(u: unit) -> 
+    let records = db.query () in
+    let cov = Mkit.cov (Mkit.transpose (records - Mkit.mean records)) in
+    let eigvecs = (Mkit.eig cov) in
+    let transformed = Arrays.firstn 2 (Mkit.dot records eigvecs) in
+    Mkit.kmeans2 4 transformed)) 
+in
+
+# Create a request channel and a receive channel for communication with the server
+
+# Code sent through request channel needs to be guaranteed the necessary (unserializeable) resources
+# This is being sent to external code so type check cannot fully guarantee safety, 
+# Runtime provides a framework for catching these errors. 
+let request_chan = cnew 
+[
+    Arrays: { firstn: num -> num -> num },
+    db: { query: unit -> num },
+    Mkit: {
+        cov: num -> num,
+        transpose: num -> num,
+        mean: num -> num,
+        eig: num -> num,
+        dot: num -> num -> num,
+        kmeans2: num -> num -> num
+    }
+] unit -> num 
+in
+
+# Receive channel does not require any resources, it is only used to receive computed results from the server
+let receive_chan = cnew num in
+
+# Send the marshalled code through a request channel
+let _ = request_chan ! package in
+
+# Block and wait for results through receive channel
+let clusters = receive_chan ? in
+
+# ...
+()
