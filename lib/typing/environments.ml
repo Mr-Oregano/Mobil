@@ -1,4 +1,4 @@
-open Structs.ET
+open Repr.ET
 open Printf
 
 let assert_msg cond msg = if not cond then failwith msg

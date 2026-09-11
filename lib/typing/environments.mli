@@ -1,5 +1,4 @@
-open Structs
-open Structs.ET
+open Repr.ET
 
 (* This will be used as the 'Input' of type checking (TOP-DOWN analysis) *)
 module Context : sig

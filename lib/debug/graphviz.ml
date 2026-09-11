@@ -1,4 +1,5 @@
-open Typing.Structs
+open Typing.Repr
+open Syntax.Repr
 open Printf
 
 (* Nodes in graphviz are represented by their integer ID *)
