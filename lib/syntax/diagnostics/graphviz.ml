@@ -6,24 +6,29 @@ type node = int
 
 let op_to_string (op : Ast.op) = match op with O_Add -> "+" | O_Sub -> "-"
 
-let eval_graphviz (out : out_channel) (prog : Ast.prog) =
+let eval_graphviz out (prog : Ast.prog) =
   let outs = Out_channel.output_string out in
   let counter = ref 0 in
 
-  let rec make_node (name : string) (children : node list) =
+  let rec make_node name (children : node list) =
     let () = incr counter in
     let () = outs (sprintf "%d [label=\"%s\"]; " !counter name) in
     let () = children |> List.iter (make_edge !counter) in
     !counter
-  and make_leaf (name : string) = make_node name []
+  and make_leaf name = make_node name []
   and make_edge (parent : node) (child : node) = outs (sprintf "%d -> %d; " parent child) in
+  let make_seq name func vs = make_node name (List.map func vs) in
+  let make_list func vs = make_seq "[ ... ]" func vs in
 
   let rec eval_expr (e : Ast.expr) =
+    let make_coeff coeff = make_list (eval_ident_type_pair "<entry>") coeff in
+    let make_rebinds rebinds = make_list (eval_ident_expr_pair "<entry>") rebinds in
+    let make_rec entries = make_seq "{ ... }" (eval_ident_expr_pair "<entry>") entries in
+
     match e with
     | E_Marshal body -> make_node "E_Marshal" [ eval_expr body ]
     | E_Unmarshal { rebinds; body } ->
-        let ctx = make_node "[ ... ]" (List.map (eval_ident_expr_pair "<entry>") rebinds) in
-        make_node "E_Unmarshal" [ ctx; eval_expr body ]
+        make_node "E_Unmarshal" [ make_rebinds rebinds; eval_expr body ]
     | E_Abs { param; body } -> make_node "E_Abs" [ eval_param param; eval_expr body ]
     | E_If { cond; if_; else_ } ->
         make_node "E_If"
@@ -49,10 +54,7 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
         make_node "E_ChanSend" [ eval_expr chan; make_leaf "!"; eval_expr package ]
     | E_ChanReceive e -> make_node "E_ChanReceive" [ eval_expr e; make_leaf "?" ]
     | E_NewChan { requirements; typ } ->
-        let requirements' =
-          make_node "[ ... ]" (List.map (eval_ident_type_pair "<entry>") requirements)
-        in
-        make_node "E_NewChan" [ requirements'; eval_typ typ ]
+        make_node "E_NewChan" [ make_coeff requirements; eval_typ typ ]
     | E_BinOp (op, e1, e2) ->
         make_node "E_BinOp" [ eval_expr e1; make_leaf (op_to_string op); eval_expr e2 ]
     | E_App (callee, arg) -> make_node "E_App" [ eval_expr callee; eval_expr arg ]
@@ -60,10 +62,11 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | E_Var v -> make_leaf (sprintf "E_Var (%s)" v)
     | E_Num n -> make_leaf (sprintf "E_Num (%s)" (Int.to_string n))
     | E_Bool b -> make_leaf (sprintf "E_Bool (%s)" (Bool.to_string b))
-    | E_Rec es -> make_node "E_Rec { ... }" (List.map (eval_ident_expr_pair "<entry>") es)
+    | E_Rec es -> make_node "E_Rec" [ make_rec es ]
     | E_Unit -> make_leaf (sprintf "E_Unit")
   and eval_typ (t : Ast.typ) =
-    let make_coeff coeff = make_node "[ ... ]" (List.map (eval_ident_type_pair "<entry>") coeff) in
+    let make_coeff coeff = make_list (eval_ident_type_pair "<entry>") coeff in
+    let make_rec entries = make_seq "{ ... }" (eval_ident_type_pair "<entry>") entries in
     match t with
     | T_Num -> make_leaf "T_Num"
     | T_Unit -> make_leaf "T_Unit"
@@ -71,7 +74,7 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | T_Func { from; to_ } -> make_node "T_Func" [ eval_typ from; make_leaf "->"; eval_typ to_ ]
     | T_Chan { coeff; typ } -> make_node "T_Chan" [ make_coeff coeff; eval_typ typ ]
     | T_Marsh { coeff; typ } -> make_node "T_Marsh" [ make_coeff coeff; eval_typ typ ]
-    | T_Rec es -> make_node "T_Rec { ... }" (List.map (eval_ident_type_pair "<entry>") es)
+    | T_Rec es -> make_node "T_Rec" [ make_rec es ]
   and eval_param (v : Ast.param) =
     eval_ident_type_pair "<param>" (match v with Some name, t -> (name, t) | None, t -> ("_", t))
   and eval_ident_expr_pair name (id, v) = make_node name [ eval_id id; eval_expr v ]
