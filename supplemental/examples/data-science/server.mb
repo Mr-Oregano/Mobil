@@ -1,16 +1,16 @@
 ################### SERVER ###################
 
 # TODO: Might be better to have actual list types
-let Arrays = { firstn: \(n: num) -> \(arr: num) -> arr } in
-let db = { query: \(u: unit) -> 420 } in
+let Arrays = { firstn: \(n: num) (arr: num) -> arr } in
+let db = { query: \() -> 420 } in
 let Mkit = 
 {
     cov: \(n: num) -> n,
     transpose: \(n: num) -> n,
     mean: \(n: num) -> n,
     eig: \(n: num) -> n,
-    dot: \(n1: num) -> \(n2: num) -> n1,
-    kmeans2: \(n1: num) -> \(n2: num) -> n1
+    dot: \(n1: num) (n2: num) -> n1,
+    kmeans2: \(n1: num) (n2: num) -> n1
 } 
 in
 

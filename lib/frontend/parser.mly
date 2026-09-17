@@ -85,15 +85,21 @@ marsh_expr:
     e = marsh_expr 
     { E_Unmarshal { rebinds = rbs; body = e } }
 
+param:
+  | UNIT { (None, T_Unit) }
+  | LPAREN id = binder COLON t = typ RPAREN { (id, t) }
+
 abs_expr:
   | e = cmpnd_expr { e }
 
 //   Allow nested lambda abstraction: \(x: num) -> \(y: num) -> x + y === \(x: num) -> (\(y: num) -> x + y)
-  | BACKSLASH LPAREN 
-    param_id = IDENT COLON 
-    param_typ = typ RPAREN ARROW 
-    e = abs_expr 
-    { E_Abs { param = (param_id, param_typ); body = e } }
+  | BACKSLASH params = nonempty_list(param) ARROW body = abs_expr
+    {
+      List.fold_right
+        (fun param acc -> E_Abs { param; body = acc })
+        params
+        body
+    }
 
 cmpnd_expr:
   | e = basic_expr { e }

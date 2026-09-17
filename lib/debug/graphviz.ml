@@ -73,7 +73,8 @@ let eval_graphviz (out : out_channel) (prog : Ast.prog) =
     | T_Chan { coeff; typ } -> make_node "T_Chan" [ make_coeff coeff; eval_typ typ ]
     | T_Marsh { coeff; typ } -> make_node "T_Marsh" [ make_coeff coeff; eval_typ typ ]
     | T_Rec es -> make_node "T_Rec { ... }" (List.map (eval_ident_type_pair "<entry>") es)
-  and eval_param (v : Ast.param) = eval_ident_type_pair "<param>" v
+  and eval_param (v : Ast.param) =
+    eval_ident_type_pair "<param>" (match v with Some name, t -> (name, t) | None, t -> ("_", t))
   and eval_ident_expr_pair name (id, v) = make_node name [ eval_id id; eval_expr v ]
   and eval_ident_type_pair name (id, typ_) = make_node name [ eval_id id; eval_typ typ_ ]
   and eval_id (i : Ast.id) = make_leaf (sprintf "ID (%s)" i) in

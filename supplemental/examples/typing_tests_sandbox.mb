@@ -4,7 +4,7 @@
 let std = 
 {
     println: \(n: num) -> (),
-    readln:  \(u: unit) -> let dummy_input = 69 in dummy_input
+    readln:  \() -> let dummy_input = 69 in dummy_input
 }
 in
 
@@ -13,7 +13,7 @@ let c = cnew [ foo: num -> num ] num in
 
 ################## Client and server are shared program ##################
 
-let client_main = \(u: unit) ->
+let client_main = \() ->
     # Client has some local function `foo` that does something
     let foo = \(n: num) -> 
         # Client-local implementation that has some debug print
@@ -27,7 +27,7 @@ let client_main = \(u: unit) ->
     ()
 in
 
-let server_main = \(u: unit) ->
+let server_main = \() ->
     # Server uses it's own log function, perhaps one that preprends a timestamp
     let log = \(n: num) -> 
         let _ = std.println (n + 69) in

@@ -59,8 +59,7 @@ let type_check (prog : Ast.prog) =
                  - We need to convert these expressions to their ET type
                  - We need to ensure that all coeffect mappings have an associated expression
                  - We need to ensure that each expression associated with a coeffect satisfies the type
-                 - We need to combine all our coeffects (graded type)
-            *)
+                 - We need to combine all our coeffects (graded type) *)
               let (s, coeff'), rebinds' =
                 List.map_and_foldl
                   (fun (s, coeff') (id, expr) ->
@@ -133,11 +132,18 @@ let type_check (prog : Ast.prog) =
         )
     | E_Abs { param; body } ->
         let param' = type_check_param ctx param in
-        let ctx' = Context.add_var ctx param' in
-        let r, body' = type_check_expr ctx' body in
-        (* We get our coeffect 'r' without the parameter *)
-        let r' = Coeffect.remove_var r (fst param') in
-        ( r',
+        let r, body' =
+          match param' with
+          | Some name, typ ->
+              (* If we have a parameter, we type check the body if a new context *)
+              let ctx' = Context.add_var ctx (name, typ) in
+              let r, body' = type_check_expr ctx' body in
+              (* We get our coeffect 'r' without the parameter *)
+              let r = Coeffect.remove_var r name in
+              (r, body')
+          | None, _ -> type_check_expr ctx body
+        in
+        ( r,
           ( ET.E_Abs { param = param'; body = body' },
             (* We capture the coeffect as latent context of this function *)
             ET.T_Func { from = snd param'; to_ = snd body' } ) )
@@ -234,7 +240,10 @@ let type_check (prog : Ast.prog) =
         in
         let tys = List.map (fun (id, exp) -> (id, snd exp)) es' in
         (rs, (ET.E_Rec es', T_Rec tys))
-  and type_check_param (ctx : Context.t) ((name, typ) : Ast.param) = (name, type_check_type typ)
+  and type_check_param (ctx : Context.t) (param : Ast.param) : ET.param =
+    match param with
+    | Some name, typ -> (Some name, type_check_type typ)
+    | None, typ -> (None, type_check_type typ)
   and type_check_type (typ : Ast.typ) =
     match typ with
     | T_Num -> ET.T_Num

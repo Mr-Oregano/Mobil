@@ -1,5 +1,5 @@
 
-let loadDataBase = \(u: unit) -> 
+let loadDataBase = \() -> 
     { query: \(q: num) -> 69 }
 in
 
@@ -13,7 +13,7 @@ in
 let c2s_chan = cnew [ db: { query: num -> num } ] unit -> num in
 let s2c_chan = cnew num in
 
-let serverMain = \(u: unit) -> 
+let serverMain = \() -> 
     # Server:
     #   2) Awaits client connections
     #   3) Executes code from client
@@ -35,13 +35,13 @@ let serverMain = \(u: unit) ->
     s2c_chan ! (marshal results)
 in
 
-let windowsMain = \(u: unit) ->
+let windowsMain = \() ->
     # Client
     #   1) Setup client-side UI
     #   2) Stubs the database, this will be a remote resource
     #   3) Executes code on the server
     #   4) Executes code from the server
-    let gps = marshal { getLoc: \(u2: unit) -> { coords: 69, time: 420 } } in
+    let gps = marshal { getLoc: \() -> { coords: 69, time: 420 } } in
     let loc = marshal (unmarshal gps).getLoc () in
     
     # Send the code we wish to send to the server
@@ -50,7 +50,7 @@ let windowsMain = \(u: unit) ->
     #   - This transitively applies to the marshaled code: '\(u: unit) -> getNews loc)' which is becomes type Marsh [ db: { query: num -> num } ] (unit -> num), 
     #   - This is compatible with the type of c2s_chan
     # 
-    let pkg = marshal \(u2: unit) -> (unmarshal [ db: db ] getNews) (unmarshal loc) in
+    let pkg = marshal \() -> (unmarshal [ db: db ] getNews) (unmarshal loc) in
     let _ = c2s_chan ! pkg in
 
     # Get the result from the server

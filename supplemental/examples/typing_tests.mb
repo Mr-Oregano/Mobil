@@ -27,7 +27,7 @@ let _ = bar r2 in
 # let _ = bar r4 in
 
 let math = {  
-  add: \(a: num) -> \(b: num) -> a + b,
+  add: \(a: num) (b: num) -> a + b,
   dbl: \(c: num) -> c + c,
   fst: \(r: { a: num, b: num }) -> r.a,
   snd: \(r: { a: num, b: num }) -> r.b

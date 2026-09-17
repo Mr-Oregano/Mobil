@@ -62,7 +62,7 @@ module ET = struct
     | E_Rec of (id * expr) list
     | E_Unit
 
-  and param = id * typ
+  and param = id option * typ
   and op = Ast.op
   and id = string
 end
