@@ -148,7 +148,7 @@ let type_check (prog : Ast.prog) =
             (* We capture the coeffect as latent context of this function *)
             ET.T_Func { from = snd param'; to_ = snd body' } ) )
     | E_If { cond; if_; else_ } ->
-        let r, cond' = type_check_expr ctx cond in
+        let r, cond' = coerce_unmarsh ctx cond in
         let () =
           assert_msg
             (snd cond' <= ET.T_Bool)
@@ -180,8 +180,8 @@ let type_check (prog : Ast.prog) =
         in
         (r @ s, (ET.E_Let { binder; value = value'; body = body' }, snd body'))
     | E_BinOp (op, e1, e2) ->
-        let r, e1' = type_check_expr ctx e1 in
-        let s, e2' = type_check_expr ctx e2 in
+        let r, e1' = coerce_unmarsh ctx e1 in
+        let s, e2' = coerce_unmarsh ctx e2 in
         let () =
           assert_msg
             (snd e1' <= ET.T_Num && snd e2' <= ET.T_Num)
@@ -189,11 +189,11 @@ let type_check (prog : Ast.prog) =
         in
         (r @ s, (ET.E_BinOp (op, e1', e2'), ET.T_Num))
     | E_App (callee, arg) -> (
-        let r, callee' = type_check_expr ctx callee in
+        let r, callee' = coerce_unmarsh ctx callee in
         match snd callee' with
         | T_Func { from; to_ } ->
             (* Extract the latent coeffect 't' from the function type *)
-            let s, arg' = type_check_expr ctx arg in
+            let s, arg' = coerce_unmarsh ctx arg in
             let () =
               assert_msg
                 (snd arg' <= from)
@@ -206,7 +206,7 @@ let type_check (prog : Ast.prog) =
             failwith
               (sprintf "Argument cannot be applied to type '%s'" (type_to_string (snd callee'))))
     | E_Access (exp, id) -> (
-        let r, exp' = type_check_expr ctx exp in
+        let r, exp' = coerce_unmarsh ctx exp in
         match snd exp' with
         | T_Rec es ->
             let entry_opt = List.find_opt (fun (id', _) -> id = id') es in
@@ -292,5 +292,32 @@ let type_check (prog : Ast.prog) =
   (* Utility for var access, check if is marsh (mobile) type and return boxed coeffect *)
   and is_mobile (typ : ET.typ) : bool =
     match typ with T_Num | T_Bool | T_Unit -> true | T_Marsh { coeff; typ } -> true | _ -> false
+  and coerce_unmarsh ctx expr =
+    let r, expr' = type_check_expr ctx expr in
+    let expr' =
+      match snd expr' with
+      | T_Marsh { coeff; typ } -> (
+          (* Build out the rebinds from the current context if possible *)
+          let rebinds' =
+            List.map_opt
+              (fun (id, typ) ->
+                match Context.get_var ctx id with
+                | None -> None
+                | Some typ' ->
+                    (* Ensure the type is compatible *)
+                    let () =
+                      assert_msg (typ' <= typ)
+                        (sprintf "Expected %s to be type \n\t'%s' \nbut got \n\t'%s'" id
+                           (type_to_string typ) (type_to_string typ'))
+                    in
+                    Some (id, (ET.E_Var id, typ)))
+              coeff
+          in
+          match rebinds' with
+          | None -> expr' (* If rebinds cannot be built, this expression cannot be coerced *)
+          | Some rebinds' -> (ET.E_Unmarshal { rebinds = rebinds'; body = expr' }, typ))
+      | _ -> expr'
+    in
+    (r, expr')
   in
   type_check_expr Context.empty prog |> snd

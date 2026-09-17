@@ -42,7 +42,7 @@ let windowsMain = \() ->
     #   3) Executes code on the server
     #   4) Executes code from the server
     let gps = marshal { getLoc: \() -> { coords: 69, time: 420 } } in
-    let loc = marshal (unmarshal gps).getLoc () in
+    let loc = marshal gps.getLoc () in
     
     # Send the code we wish to send to the server
     # 
@@ -50,7 +50,7 @@ let windowsMain = \() ->
     #   - This transitively applies to the marshaled code: '\(u: unit) -> getNews loc)' which is becomes type Marsh [ db: { query: num -> num } ] (unit -> num), 
     #   - This is compatible with the type of c2s_chan
     # 
-    let pkg = marshal \() -> (unmarshal [ db: db ] getNews) (unmarshal loc) in
+    let pkg = marshal \() -> getNews loc in
     let _ = c2s_chan ! pkg in
 
     # Get the result from the server
