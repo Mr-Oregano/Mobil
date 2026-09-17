@@ -1,32 +1,62 @@
+open Mobil
 open Mobil.Frontend
-open Mobil.Debug
 open Mobil.Typing
 open Printf
 
-let interpret (source : string) =
+type output_mode =
+  | Normal
+  | PrintAST
+  | PrintET
+
+let interpret (source : string) (mode : output_mode) =
   let lexbuf = Lexing.from_string source in
-  let ast = Parser.prog Lexer.read lexbuf in
-  let () = Graphviz.eval_graphviz stdout ast in
-  let _ =
-    try
-      let et = Type_check.type_check ast in
-      Some et
-    with Failure msg ->
-      eprintf "%s\n" msg;
-      None
-  in
-  ()
-
-let usage () = sprintf "Usage: %s <FILE>" Sys.argv.(0) |> prerr_endline
-
-let usage_and_exit () =
-  usage ();
-  exit (-1)
+  try
+    let ast = Parser.prog Lexer.read lexbuf in
+    match mode with
+    | PrintAST ->
+        Syntax.Diagnostics.Graphviz.eval_graphviz stdout ast;
+        true
+    | PrintET ->
+        let et = Type_check.type_check ast in
+        Typing.Diagnostics.Graphviz.eval_graphviz stdout et;
+        true
+    | Normal ->
+        let _et = Type_check.type_check ast in
+        (* Add evaluation / execution logic here if applicable *)
+        true
+  with Failure msg ->
+    eprintf "Error: %s\n" msg;
+    false
 
 (* Driver *)
-let _ =
-  let argc = Array.length Sys.argv in
-  if argc < 2 then usage_and_exit ()
-  else
-    let _ = In_channel.with_open_text Sys.argv.(1) In_channel.input_all |> interpret in
-    print_endline "Finished parsing with no errors..."
+let () =
+  let filename = ref "" in
+  let mode = ref Normal in
+  let speclist =
+    [
+      ( "--ast",
+        Arg.Unit (fun () -> mode := PrintAST),
+        "Output Graphviz representation of the untyped AST to stdout" );
+      ( "--et",
+        Arg.Unit (fun () -> mode := PrintET),
+        "Output Graphviz representation of the type-checked AST (ET) to stdout" );
+    ]
+  in
+
+  let usage_msg = sprintf "Usage: %s [OPTIONS] <FILE>" Sys.argv.(0) in
+
+  let anon_arg arg =
+    if !filename = "" then filename := arg else raise (Arg.Bad "Multiple input files provided")
+  in
+
+  Arg.parse speclist anon_arg usage_msg;
+
+  if !filename = "" then begin
+    eprintf "Error: No input file specified.\n\n";
+    Arg.usage speclist usage_msg;
+    exit 1
+  end;
+
+  let source = In_channel.with_open_text !filename In_channel.input_all in
+  let success = interpret source !mode in
+  if success && !mode = Normal then eprintf "Finished parsing with no errors...\n"
