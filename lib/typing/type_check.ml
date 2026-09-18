@@ -65,7 +65,9 @@ let type_check (prog : Ast.prog) =
                      (String.concat ", " (List.map (fun (id, _) -> id) coeff')))
               in
               (s, rebinds', typ)
-          | _ -> failwith "Expected marshaled type"
+          | _ ->
+              failwith
+                (sprintf "Expected type \n\tmarsh \nbut got \n\t'%s'" (type_to_string (snd body')))
         in
         (r @ s, (ET.E_Unmarshal { rebinds = rebinds'; body = body' }, typ))
     | E_ChanSend { chan; package } ->
@@ -294,7 +296,7 @@ let type_check (prog : Ast.prog) =
               coeff
           in
           match rebinds' with
-          | None -> expr' (* If rebinds cannot be built, this expression cannot be coerced *)
+          | None -> failwith "Implicit unmarshaling not possible for expression"
           | Some rebinds' -> (ET.E_Unmarshal { rebinds = rebinds'; body = expr' }, typ))
       | _ -> expr'
     in
