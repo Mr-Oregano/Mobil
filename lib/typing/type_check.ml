@@ -275,8 +275,7 @@ let type_check (prog : Ast.prog) =
   and is_mobile (typ : ET.typ) : bool =
     match typ with T_Num | T_Bool | T_Unit -> true | T_Marsh { coeff; typ } -> true | _ -> false
   and coerce_unmarsh ctx expr =
-    let r, expr' = type_check_expr ctx expr in
-    let expr' =
+    let rec _aux expr' =
       match snd expr' with
       | T_Marsh { coeff; typ } -> (
           (* Build out the rebinds from the current context if possible *)
@@ -297,9 +296,10 @@ let type_check (prog : Ast.prog) =
           in
           match rebinds' with
           | None -> failwith "Implicit unmarshaling not possible for expression"
-          | Some rebinds' -> (ET.E_Unmarshal { rebinds = rebinds'; body = expr' }, typ))
+          | Some rebinds' -> _aux (ET.E_Unmarshal { rebinds = rebinds'; body = expr' }, typ))
       | _ -> expr'
     in
-    (r, expr')
+    let r, expr' = type_check_expr ctx expr in
+    (r, _aux expr')
   in
   type_check_expr Context.empty prog |> snd

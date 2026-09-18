@@ -1,0 +1,28 @@
+
+let x1 = 9 in
+let y1 = 9 in
+let _ = x1 + y1 in
+
+# Marshals can be unmarshaled automatically when used if the context allows
+let x2 = marshal 9 in
+let y2 = marshal 9 in
+let _ = x2 + y2 in
+
+# Nested marshals can also be fully unmarshaled if the context allows
+let x3 = marshal marshal 9 in
+let y3 = marshal marshal 9 in
+let _ = x3 + y3 in
+
+let x4 = marshal marshal marshal 9 in
+let y4 = marshal marshal marshal 9 in
+let _ = x4 + y4 in
+
+let foo = \() ->
+    let z = { foo: 9 } in
+    marshal z.foo
+in
+let y5 = 9 in
+# let _ = foo () + y5 in # This is not allowed because unmarshaling `foo` requires `z` which is not in this context!
+let _ = (unmarshal [ z: { foo: 9 } ] foo ()) + y5 in
+
+()
