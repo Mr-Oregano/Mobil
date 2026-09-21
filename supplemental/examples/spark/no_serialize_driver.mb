@@ -1,0 +1,52 @@
+
+# Create communication channels, Spark handles communication automatically
+# This is an extremely simplified example in a simplified language
+let request_chan  = cnew { data: num, map: num -> num } in
+let response_chan = cnew num in
+
+let workerMain = \() ->
+    # Receive a package from the request channel, a real implementation
+    # might just receive a partition of the work to actually execute and 
+    # instructions on what to do.
+    let pkg = request_chan ? in
+
+    # Compute the value
+    let result = pkg.map pkg.data in
+
+    # Send the value back to the driver
+    response_chan ! (marshal result)
+in
+
+let driverMain = \() ->
+    # class UnserializablePipeline {
+    let run = \(this: { offset: num }) ->
+        let number = 5 in
+        
+        # Create the package that will be sent to worker nodes
+        let pkg = marshal 
+        { 
+            data: number,
+            map: \(x: num) -> x + this.offset
+        }    
+        in
+
+        # Send through channel
+        # <<< COMPILE ERROR HAPPENS HERE >>>
+        let _ = request_chan ! pkg in
+
+        # Receive result from channel
+        unmarshal (response_chan ?)
+    in
+    # }
+
+    # App {
+
+    # Initialize the pipeline object
+    let unserializablePipeline = { offset: 10 } in
+
+    # Execute the pipeline
+    run unserializablePipeline
+    # }
+in
+
+()
