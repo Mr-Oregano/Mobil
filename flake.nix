@@ -31,12 +31,20 @@
 
             # Build tools
             nativeBuildInputs = with ocamlPackages; [
-              findlib
+              findlib # needed for dune
               menhir
+            ];
+
+            # Test dependencies
+            checkInputs = with ocamlPackages; [
+              alcotest
             ];
 
             # Build dependencies
             buildInputs = with ocamlPackages; [ ];
+
+            # Include tests
+            doCheck = true;
           };
         }
       );
@@ -57,8 +65,6 @@
               utop
               ocamlformat
               ocaml-lsp
-              menhir
-              findlib # needed for dune
             ];
           };
         }

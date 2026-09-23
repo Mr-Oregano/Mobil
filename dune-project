@@ -23,6 +23,7 @@
  (description "Using coeffects to model a type system for code mobility")
  (depends
   (ocaml
-   (>= 5.3.0)))
+   (>= 5.3.0))
+  (alcotest :with-test))
  (tags
   ("coeffects" "code mobility")))
