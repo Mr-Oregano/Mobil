@@ -1,0 +1,18 @@
+
+# Shadowing
+let x = 9 in
+let x = 10 in
+
+let foo = \(x: num) -> x + x in
+let _ = foo 11 in
+
+let pkg = 
+    let x = { bar: 10 } in
+    marshal \() -> x.bar
+in
+
+# Error here, wrong 'x'
+# let _ = pkg () in
+let _ = (unmarshal [ x: { bar: 69 } ] pkg) () in
+
+()

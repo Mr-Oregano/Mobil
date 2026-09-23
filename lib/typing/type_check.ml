@@ -1,7 +1,7 @@
 open Repr
 open Repr.ET
 open Syntax.Repr
-open Environments
+open Ctx
 open Printf
 open Diagnostics.To_string
 open List_ext
@@ -17,7 +17,7 @@ let rec assert_no_duplicates xs msg_func =
 let ( @ ) = Coeffect.( @ )
 
 let type_check (prog : Ast.prog) =
-  let rec type_check_expr (ctx : Context.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
+  let rec type_check_expr (ctx : Vars.t) (expr : Ast.expr) : Coeffect.t * ET.expr =
     match expr with
     | E_Marshal body ->
         (* Boxed coeffect simply becomes the requirements of the body *)
@@ -118,7 +118,7 @@ let type_check (prog : Ast.prog) =
           match param' with
           | Some name, typ ->
               (* If we have a parameter, we type check the body if a new context *)
-              let ctx' = Context.add_var ctx (name, typ) in
+              let ctx' = Vars.add_var ctx (name, typ) in
               let r, body' = type_check_expr ctx' body in
               (* We get our coeffect 'r' without the parameter *)
               let r = Coeffect.remove_var r name in
@@ -151,7 +151,7 @@ let type_check (prog : Ast.prog) =
         let s, body' =
           match binder with
           | Some x ->
-              let ctx' = Context.add_var ctx (x, snd value') in
+              let ctx' = Vars.add_var ctx (x, snd value') in
               let s', body' = type_check_expr ctx' body in
               (* We remove the binder from the free variable coeffect *)
               let s = Coeffect.remove_var s' x in
@@ -201,7 +201,7 @@ let type_check (prog : Ast.prog) =
             (r, (ET.E_Access (exp', id), typ))
         | _ -> failwith (sprintf "Cannot access '%s' from non-record" id))
     | E_Var v -> (
-        match Context.get_var ctx v with
+        match Vars.get_var ctx v with
         | None -> failwith (sprintf "Unbound variable: '%s'" v)
         | Some t ->
             if is_mobile t then (Coeffect.empty, (ET.E_Var v, t))
@@ -222,7 +222,7 @@ let type_check (prog : Ast.prog) =
         in
         let tys = List.map (fun (id, exp) -> (id, snd exp)) es' in
         (rs, (ET.E_Rec es', T_Rec tys))
-  and type_check_param (ctx : Context.t) (param : Ast.param) : ET.param =
+  and type_check_param (ctx : Vars.t) (param : Ast.param) : ET.param =
     match param with
     | Some name, typ -> (Some name, type_check_type typ)
     | None, typ -> (None, type_check_type typ)
@@ -275,6 +275,8 @@ let type_check (prog : Ast.prog) =
   and is_mobile (typ : ET.typ) : bool =
     match typ with T_Num | T_Bool | T_Unit -> true | T_Marsh { coeff; typ } -> true | _ -> false
   and coerce_unmarsh ctx expr =
+    (* TODO: Should really check if the underlying type `t` in a `marsh t` would even be compatible.
+             Otherwise doing this is pointless and a waste of time *)
     let rec _aux expr' =
       match snd expr' with
       | T_Marsh { coeff; typ } -> (
@@ -282,7 +284,7 @@ let type_check (prog : Ast.prog) =
           let rebinds' =
             List.map_opt
               (fun (id, typ) ->
-                match Context.get_var ctx id with
+                match Vars.get_var ctx id with
                 | None -> None
                 | Some typ' ->
                     (* Ensure the type is compatible *)
@@ -302,4 +304,4 @@ let type_check (prog : Ast.prog) =
     let r, expr' = type_check_expr ctx expr in
     (r, _aux expr')
   in
-  type_check_expr Context.empty prog |> snd
+  type_check_expr Vars.empty prog |> snd

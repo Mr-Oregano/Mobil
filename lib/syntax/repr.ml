@@ -60,11 +60,10 @@ module Ast = struct
     | E_Rec of (id * expr) list
     | E_Unit
 
-  and param = id option * typ
-
   and op =
     | O_Add
     | O_Sub
 
+  and param = id option * typ
   and id = string
 end

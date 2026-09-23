@@ -3,23 +3,14 @@ open Printf
 
 let assert_msg cond msg = if not cond then failwith msg
 
-module Context = struct
+module Vars = struct
   module IDMap = Map.Make (String)
 
   type t = typ IDMap.t
 
   let empty = IDMap.empty
-
-  (* TODO: Allow identifier shadowing *)
-  let _assert_not_contains map id =
-    if not (map |> IDMap.mem id) then ()
-    else failwith (Printf.sprintf "Already bound identifier '%s'" id)
-
-  let add_var ctx (id, typ) =
-    _assert_not_contains ctx id;
-    ctx |> IDMap.add id typ
-
-  let remove_var ctx name = ctx |> IDMap.remove name
+  let add_var ctx (id, typ) = ctx |> IDMap.add id typ
+  let rem_var ctx name = ctx |> IDMap.remove name
   let get_var ctx name = ctx |> IDMap.find_opt name
   let get_vars ctx = IDMap.to_seq ctx
 end
@@ -33,12 +24,14 @@ module Coeffect = struct
   let singleton = IDMap.singleton
 
   (* Unlike in the theory, the coeffect here will just fail when this happens *)
-  let _assert_not_contains map id =
-    if not (map |> IDMap.mem id) then ()
-    else failwith (Printf.sprintf "Already bound identifier '%s'" id)
+  let _fail_on_collision id typ1 typ2 =
+    (* TODO: Report type mismatch as well? *)
+    if typ1 <> typ2 then failwith (sprintf "Failed to merge coeffects, collision with '%s'" id)
+
+  let get_var coeff name = coeff |> IDMap.find_opt name
 
   let add_var coeff (id, typ) =
-    _assert_not_contains coeff id;
+    (match get_var coeff id with None -> () | Some typ' -> _fail_on_collision id typ typ');
     coeff |> IDMap.add id typ
 
   let remove_var coeff name = coeff |> IDMap.remove name
@@ -46,7 +39,6 @@ module Coeffect = struct
   let remove_vars coeff names =
     Seq.fold_left (fun coeff' name -> remove_var coeff' name) coeff names
 
-  let get_var coeff name = coeff |> IDMap.find_opt name
   let get_entries coeff = IDMap.to_seq coeff
 
   (* Coeffect utilities *)
@@ -63,8 +55,8 @@ module Coeffect = struct
   let merge coeff1 coeff2 =
     IDMap.union
       (fun v typ1 typ2 ->
-        if typ1 <> typ2 then failwith (sprintf "Failed to merge coeffects, collision with '%s'" v)
-        else Some typ1)
+        _fail_on_collision v typ1 typ2;
+        Some typ1)
       coeff1 coeff2
 
   let ( @ ) = merge
