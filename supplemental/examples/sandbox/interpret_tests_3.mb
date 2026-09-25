@@ -1,0 +1,6 @@
+
+let x = 60 in
+let rec = { foo: 9 } in
+let pkg = marshal \() -> x + rec.foo in
+
+pkg

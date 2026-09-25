@@ -12,7 +12,8 @@ module Vars = struct
   let add_var ctx (id, typ) = ctx |> IDMap.add id typ
   let rem_var ctx name = ctx |> IDMap.remove name
   let get_var ctx name = ctx |> IDMap.find_opt name
-  let get_vars ctx = IDMap.to_seq ctx
+  let to_seq ctx = IDMap.to_seq ctx
+  let of_seq es = IDMap.add_seq es empty
 end
 
 module Coeffect = struct
@@ -39,8 +40,6 @@ module Coeffect = struct
   let remove_vars coeff names =
     Seq.fold_left (fun coeff' name -> remove_var coeff' name) coeff names
 
-  let get_entries coeff = IDMap.to_seq coeff
-
   (* Coeffect utilities *)
   let ( <= ) coeff1 coeff2 =
     IDMap.for_all
@@ -62,5 +61,6 @@ module Coeffect = struct
   let ( @ ) = merge
 
   (* Not mentioned in the theory, but useful for creating a coeffect from other types *)
-  let from_ident_type_pairs (es : (id * typ) Seq.t) = IDMap.add_seq es empty
+  let to_seq coeff = IDMap.to_seq coeff
+  let of_seq (es : (id * typ) Seq.t) = IDMap.add_seq es empty
 end

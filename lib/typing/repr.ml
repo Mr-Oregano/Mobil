@@ -1,3 +1,4 @@
+(* TODO: Would be nice to have consistency with the coeff type and use the same structure everywhere *)
 open Syntax.Repr
 
 (* TODO: Parameterize these structs with the coeffect type *)

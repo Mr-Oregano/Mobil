@@ -22,7 +22,7 @@ let type_check (prog : Ast.prog) =
     | E_Marshal body ->
         (* Boxed coeffect simply becomes the requirements of the body *)
         let r, body' = type_check_expr ctx body in
-        let coeff = List.of_seq (Coeffect.get_entries r) in
+        let coeff = List.of_seq (Coeffect.to_seq r) in
         (Coeffect.empty, (ET.E_Marshal body', T_Marsh { coeff; typ = snd body' }))
     | E_Unmarshal { rebinds; body } ->
         (* Assert that there are no duplicate IDs in the context *)
@@ -267,8 +267,8 @@ let type_check (prog : Ast.prog) =
     | T_Marsh { coeff; typ }, T_Marsh { coeff = coeff'; typ = typ' } ->
         (* For a marshaled type, it must be covariant with its type
        and subcoeffecting must be satisfied *)
-        let r = Coeffect.from_ident_type_pairs (List.to_seq coeff) in
-        let r' = Coeffect.from_ident_type_pairs (List.to_seq coeff') in
+        let r = Coeffect.of_seq (List.to_seq coeff) in
+        let r' = Coeffect.of_seq (List.to_seq coeff') in
         typ <= typ' && Coeffect.(r <= r')
     | _ -> t1 = t2
   (* Utility for var access, check if is marsh (mobile) type and return boxed coeffect *)

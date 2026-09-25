@@ -1,0 +1,6 @@
+
+let y = 8 in
+let foo = \(x: num) -> x + y in
+let y = 69 in
+
+foo

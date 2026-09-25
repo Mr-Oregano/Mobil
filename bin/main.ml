@@ -1,6 +1,7 @@
 open Mobil
 open Mobil.Frontend
 open Mobil.Typing
+open Mobil.Interpreter
 open Printf
 
 type output_mode =
@@ -12,21 +13,18 @@ let interpret (source : string) (mode : output_mode) =
   let lexbuf = Lexing.from_string source in
   try
     let ast = Parser.prog Lexer.read lexbuf in
-    match mode with
-    | PrintAST ->
-        Syntax.Diagnostics.Graphviz.eval_graphviz stdout ast;
-        true
+    (match mode with
+    | PrintAST -> Syntax.Diagnostics.Graphviz.eval_graphviz stdout ast
     | PrintET ->
         let et = Type_check.type_check ast in
-        Typing.Diagnostics.Graphviz.eval_graphviz stdout et;
-        true
-    | Normal ->
-        let _et = Type_check.type_check ast in
-        (* Add evaluation / execution logic here if applicable *)
-        true
+        Typing.Diagnostics.Graphviz.eval_graphviz stdout et
+    | _ -> ());
+    let et = Type_check.type_check ast in
+    let res = Interpret.interpret et in
+    Some res
   with Failure msg ->
     eprintf "Error: %s\n" msg;
-    false
+    None
 
 (* Driver *)
 let () =
@@ -58,5 +56,6 @@ let () =
   end;
 
   let source = In_channel.with_open_text !filename In_channel.input_all in
-  let success = interpret source !mode in
-  if success && !mode = Normal then eprintf "Finished parsing with no errors...\n"
+  let result = interpret source !mode in
+
+  Option.iter (eprintf "Result: %s\n") (Option.map Diagnostics.To_string.value_to_string result)
