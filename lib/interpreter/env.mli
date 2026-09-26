@@ -1,6 +1,5 @@
-open Repr
-open Repr.RT
-open Typing.Repr.ET
+open Rt
+open Typing.Et
 open Printf
 
 type t

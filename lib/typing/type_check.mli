@@ -1,4 +1,4 @@
-open Repr
-open Syntax.Repr
+open Et
+open Syntax.Ast
 
-val type_check : Ast.prog -> ET.prog
+val type_check : prog -> Et.prog

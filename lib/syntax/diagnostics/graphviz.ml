@@ -1,4 +1,4 @@
-open Repr
+open Ast
 open Printf
 
 (* Nodes in graphviz are represented by their integer ID *)

@@ -1,4 +1,4 @@
-open Typing.Repr
-open Repr
+open Typing.Et
+open Rt
 
-val interpret : ET.prog -> RT.value
+val interpret : prog -> value

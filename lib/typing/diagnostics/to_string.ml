@@ -1,7 +1,7 @@
 open Printf
-open Repr
+open Et
 
-let rec type_to_string (typ : ET.typ) =
+let rec type_to_string (typ : typ) =
   (* TODO: Ideally restrict the total width of the string to a fixed amount of characters *)
   let entry_to_string (id, typ) = sprintf "%s: %s" id (type_to_string typ) in
   let entries_to_string format sep es =

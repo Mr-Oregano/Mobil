@@ -1,3 +1,3 @@
-open Repr
+open Et
 
-val type_to_string : ET.typ -> string
+val type_to_string : typ -> string

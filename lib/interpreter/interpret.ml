@@ -1,12 +1,11 @@
-open Repr
-open Repr.RT
-open Typing.Repr
+open Rt
+open Typing.Et
 open Env
 open Printf
 
-let interpret (prog : ET.prog) : RT.value =
+let interpret (prog : prog) : value =
   let env = Env.empty in
-  let rec eval_expr (env : Env.t) (exp : ET.expr) : RT.value =
+  let rec eval_expr (env : Env.t) (exp : expr) : value =
     match fst exp with
     | E_Marshal body -> (
         let typ = snd exp in

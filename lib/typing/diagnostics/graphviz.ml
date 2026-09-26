@@ -1,13 +1,13 @@
-open Repr
+open Et
 open Printf
 open To_string
 
 (* Nodes in graphviz are represented by their integer ID *)
 type node = int
 
-let op_to_string (op : ET.op) = match op with O_Add -> "+" | O_Sub -> "-"
+let op_to_string (op : op) = match op with O_Add -> "+" | O_Sub -> "-"
 
-let eval_graphviz out (prog : ET.prog) =
+let eval_graphviz out (prog : prog) =
   let outs = Out_channel.output_string out in
   let counter = ref 0 in
 
@@ -21,7 +21,7 @@ let eval_graphviz out (prog : ET.prog) =
   let make_seq name func vs = make_node name (List.map func vs) in
   let make_list func vs = make_seq "[ ... ]" func vs in
 
-  let rec eval_expr (e : ET.expr) =
+  let rec eval_expr (e : expr) =
     let make_coeff coeff = make_list (eval_ident_type_pair "<entry>") coeff in
     let make_rebinds rebinds = make_list (eval_ident_expr_pair "<entry>") rebinds in
     let make_rec entries = make_seq "{ ... }" (eval_ident_expr_pair "<entry>") entries in
@@ -51,7 +51,7 @@ let eval_graphviz out (prog : ET.prog) =
       | E_Unit -> ("E_Unit", [])
     in
     make_node (sprintf "%s : %s" name (type_to_string typ)) children
-  and eval_typ (t : ET.typ) =
+  and eval_typ (t : typ) =
     let make_coeff coeff = make_list (eval_ident_type_pair "<entry>") coeff in
     let make_rec entries = make_seq "{ ... }" (eval_ident_type_pair "<entry>") entries in
     match t with
@@ -62,11 +62,11 @@ let eval_graphviz out (prog : ET.prog) =
     | T_Chan { coeff; typ } -> make_node "T_Chan" [ make_coeff coeff; eval_typ typ ]
     | T_Marsh { coeff; typ } -> make_node "T_Marsh" [ make_coeff coeff; eval_typ typ ]
     | T_Rec es -> make_node "T_Rec" [ make_rec es ]
-  and eval_param (v : ET.param) =
+  and eval_param (v : param) =
     eval_ident_type_pair "<param>" (match v with Some name, t -> (name, t) | None, t -> ("_", t))
   and eval_ident_expr_pair name (id, v) = make_node name [ eval_id id; eval_expr v ]
   and eval_ident_type_pair name (id, typ_) = make_node name [ eval_id id; eval_typ typ_ ]
-  and eval_id (i : ET.id) = make_leaf (sprintf "ID '%s'" i) in
+  and eval_id (i : id) = make_leaf (sprintf "ID '%s'" i) in
 
   let () = outs "digraph { ordering=\"out\" " in
   let _ = eval_expr prog in

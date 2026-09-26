@@ -1,3 +1,3 @@
-open Repr
+open Ast
 
-val eval_graphviz : out_channel -> Ast.prog -> unit
+val eval_graphviz : out_channel -> prog -> unit

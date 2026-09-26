@@ -1,4 +1,4 @@
-open Repr.ET
+open Et
 
 (* This will be used as the 'Input' of type checking (TOP-DOWN analysis) *)
 module Vars : sig

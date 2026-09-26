@@ -1,5 +1,5 @@
 %{
-  open Syntax.Repr.Ast
+  open Syntax.Ast
 %}
 
 // Tokens
