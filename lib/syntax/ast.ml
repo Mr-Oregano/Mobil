@@ -3,6 +3,7 @@ type prog = expr
 
 and typ =
   | T_Num
+  | T_Str
   | T_Bool
   | T_Unit
   | T_Func of {
@@ -46,15 +47,23 @@ and expr' =
       package : expr;
     }
   | E_ChanReceive of expr
-  | E_NewChan of {
+  | E_Listen of {
       requirements : (id * typ) list;
       typ : typ;
+      port : int;
+    }
+  | E_Connect of {
+      requirements : (id * typ) list;
+      typ : typ;
+      addr : string;
+      port : int;
     }
   | E_BinOp of (op * expr * expr)
   | E_App of (expr * expr)
   | E_Access of (expr * id)
   | E_Var of id
   | E_Num of int
+  | E_Str of string
   | E_Bool of bool
   | E_Rec of (id * expr) list
   | E_Unit
@@ -62,6 +71,8 @@ and expr' =
 and op =
   | O_Add
   | O_Sub
+  | O_Mul
+  | O_Div
 
 and param = id option * typ
 and id = string

@@ -5,7 +5,8 @@ open To_string
 (* Nodes in graphviz are represented by their integer ID *)
 type node = int
 
-let op_to_string (op : op) = match op with O_Add -> "+" | O_Sub -> "-"
+let op_to_string (op : op) =
+  match op with O_Add -> "+" | O_Sub -> "-" | O_Mul -> "*" | O_Div -> "\\"
 
 let eval_graphviz out (prog : prog) =
   let outs = Out_channel.output_string out in
@@ -39,13 +40,20 @@ let eval_graphviz out (prog : prog) =
       | E_ChanSend { chan; package } ->
           ("E_ChanSend", [ eval_expr chan; make_leaf "!"; eval_expr package ])
       | E_ChanReceive e -> ("E_ChanReceive", [ eval_expr e; make_leaf "?" ])
-      | E_NewChan { requirements; typ } -> ("E_NewChan", [ make_coeff requirements; eval_typ typ ])
+      | E_Listen { requirements; typ; port } ->
+          ("E_Listen", [ make_coeff requirements; eval_typ typ; make_leaf (Int.to_string port) ])
+      | E_Connect { requirements; typ; port; addr } ->
+          ( "E_Connect",
+            [
+              make_coeff requirements; eval_typ typ; make_leaf (Int.to_string port); make_leaf addr;
+            ] )
       | E_BinOp (op, e1, e2) ->
           ("E_BinOp ", [ eval_expr e1; make_leaf (op_to_string op); eval_expr e2 ])
       | E_App (callee, arg) -> ("E_App", [ eval_expr callee; eval_expr arg ])
       | E_Access (e, id) -> ("E_Access", [ eval_id id; eval_expr e ])
       | E_Var v -> (sprintf "E_Var '%s'" v, [])
       | E_Num n -> (sprintf "E_Num '%s'" (Int.to_string n), [])
+      | E_Str s -> (sprintf "E_Str '%s'" s, [])
       | E_Bool b -> (sprintf "E_Bool '%s'" (Bool.to_string b), [])
       | E_Rec es -> ("E_Rec", [ make_rec es ])
       | E_Unit -> ("E_Unit", [])
@@ -56,6 +64,7 @@ let eval_graphviz out (prog : prog) =
     let make_rec entries = make_seq "{ ... }" (eval_ident_type_pair "<entry>") entries in
     match t with
     | T_Num -> make_leaf "T_Num"
+    | T_Str -> make_leaf "T_Str"
     | T_Unit -> make_leaf "T_Unit"
     | T_Bool -> make_leaf "T_Bool"
     | T_Func { from; to_ } -> make_node "T_Func" [ eval_typ from; make_leaf "->"; eval_typ to_ ]

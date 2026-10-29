@@ -1,23 +1,18 @@
 
-# Create communication channels, Spark handles communication automatically
-# This is an extremely simplified example in a simplified language
-let request_chan  = cnew { data: num, map: num -> num } in
-let response_chan = cnew num in
-
-let workerMain = \() ->
+let worker_main = \(recv: chan { data: num, map: num -> num }) -> \(send: chan num) ->
     # Receive a package from the request channel, a real implementation
     # might just receive a partition of the work to actually execute and 
     # instructions on what to do.
-    let pkg = request_chan ? in
+    let pkg = recv ? in
 
     # Compute the value
     let result = pkg.map pkg.data in
 
     # Send the value back to the driver
-    response_chan ! (marshal result)
+    send ! (marshal result)
 in
 
-let driverMain = \() ->
+let driver_main = \(send: chan { data: num, map: num -> num }) -> \(recv: chan num) ->
     # class UnserializablePipeline {
     let run = \(this: { offset: num }) ->
         let number = 5 in
@@ -32,10 +27,10 @@ let driverMain = \() ->
 
         # Send through channel
         # <<< COMPILE ERROR HAPPENS HERE >>>
-        let _ = request_chan ! pkg in
+        let _ = send ! pkg in
 
         # Receive result from channel
-        unmarshal (response_chan ?)
+        unmarshal (recv ?)
     in
     # }
 
@@ -49,4 +44,15 @@ let driverMain = \() ->
     # }
 in
 
-()
+# Create communication channels, Spark handles communication automatically
+# This is an extremely simplified example in a simplified language
+if true then
+    # Worker (Server)
+    let recv  = listen { data: num, map: num -> num } 8080 in
+    let send = listen num 8081 in
+    worker_main recv send
+else
+    # Driver (Client)
+    let send  = connect { data: num, map: num -> num } "localhost" 8080 in
+    let recv = connect num "localhost" 8081 in
+    driver_main send recv

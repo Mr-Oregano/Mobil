@@ -1,0 +1,135 @@
+# Client program wants to do heavy processing on a large amount of data
+# and retrieve filtered results for further, local processing
+
+# TODO: Might be better to have actual list types
+let Arrays = { firstn: \(n: num) (arr: num) -> arr } in
+let db = { query: \() -> 69 } in
+let Mkit = 
+{
+    cov: \(n: num) -> n,
+    transpose: \(n: num) -> n,
+    mean: \(n: num) -> n,
+    eig: \(n: num) -> n,
+    dot: \(n1: num) (n2: num) -> n1,
+    kmeans2: \(n1: num) (n2: num) -> n1
+} 
+in
+
+let server_main =     
+    \(recv: chan 
+        [   
+            Arrays: { firstn: num -> num -> num },
+            db: { query: unit -> num },
+            Mkit: {
+                cov: num -> num,
+                transpose: num -> num,
+                mean: num -> num,
+                eig: num -> num,
+                dot: num -> num -> num,
+                kmeans2: num -> num -> num
+            } 
+        ] unit -> num) ->
+    \(send: chan num) ->
+
+    # Block and wait for code from client
+    let code = unmarshal [ db: db, Mkit: Mkit, Arrays: Arrays ] (recv ?) in
+
+    # Execute the client code
+    let results = code () in
+
+    # Marshal the results
+    let package = marshal results in 
+
+    # Respond with the results
+    send ! package
+in
+
+let client_main = 
+    \(send: chan 
+        [   
+            Arrays: { firstn: num -> num -> num },
+            db: { query: unit -> num },
+            Mkit: {
+                cov: num -> num,
+                transpose: num -> num,
+                mean: num -> num,
+                eig: num -> num,
+                dot: num -> num -> num,
+                kmeans2: num -> num -> num
+            } 
+        ] unit -> num) ->
+    \(recv: chan num) ->
+
+    # Marshal code using the resources that will be dynamically rebound
+    let package = (marshal \() -> 
+        let records = db.query () in
+        let cov = Mkit.cov (Mkit.transpose (records - Mkit.mean records)) in
+        let eigvecs = (Mkit.eig cov) in
+        let transformed = Arrays.firstn 2 (Mkit.dot records eigvecs) in
+        Mkit.kmeans2 4 transformed)
+    in
+
+    # Send the marshalled code through a request channel
+    let _ = send ! package in
+
+    # Block and wait for results through receive channel
+    let pkg = recv ? in
+
+    # Unmarshal
+    let clusters = unmarshal pkg in
+
+    # ...
+    ()
+in
+
+if true then
+    # Server
+
+    # Create a receive channel and a response channel for communication with the client
+    # Code received through channel needs to be guaranteed the necessary (unserializeable) resources
+    # This is being sent to external code so type check cannot fully guarantee safety, 
+    # Runtime provides a framework for catching these errors. 
+    let recv = listen
+    [
+        Arrays: { firstn: num -> num -> num },
+        db: { query: unit -> num },
+        Mkit: {
+            cov: num -> num,
+            transpose: num -> num,
+            mean: num -> num,
+            eig: num -> num,
+            dot: num -> num -> num,
+            kmeans2: num -> num -> num
+        }
+    ] unit -> num 8080 in
+
+    # Response channel does not require any resources, it is only used to send computed results to the client
+    let send = listen num 8081 in
+
+    server_main recv send
+else
+    # Client
+
+    # Create a send channel and a receive channel for communication with the server
+    # Code sent through channel needs to be guaranteed the necessary (unserializeable) resources
+    # This is being sent to external code so type check cannot fully guarantee safety, 
+    # Runtime provides a framework for catching these errors. 
+    let send = connect 
+    [
+        Arrays: { firstn: num -> num -> num },
+        db: { query: unit -> num },
+        Mkit: {
+            cov: num -> num,
+            transpose: num -> num,
+            mean: num -> num,
+            eig: num -> num,
+            dot: num -> num -> num,
+            kmeans2: num -> num -> num
+        }
+    ] unit -> num "localhost" 8080 in
+
+    # Receive channel does not require any resources, it is only used to receive computed results from the server
+    let recv = connect num "localhost" 8081 in
+    
+    client_main send recv
+

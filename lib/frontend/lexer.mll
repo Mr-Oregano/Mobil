@@ -1,5 +1,6 @@
 {
   open Parser
+  exception SyntaxError of string
 }
 
 let white = [' ' '\t' '\n' '\r']+
@@ -24,9 +25,11 @@ rule read = parse
   | "marshal"        { KW_MARSHAL }
   | "unmarshal"      { KW_UNMARSHAL }
   | "num"            { KW_NUM }
+  | "str"            { KW_STR }
   | "bool"           { KW_BOOL }
   | "unit"           { KW_UNIT }
-  | "cnew"           { KW_CNEW }
+  | "listen"         { KW_LISTEN }
+  | "connect"        { KW_CONNECT }
   | "->"             { ARROW }
   | '('              { LPAREN }
   | ')'              { RPAREN }
@@ -42,10 +45,19 @@ rule read = parse
   | '\\'             { BACKSLASH }
   | '+'              { PLUS }
   | '-'              { MINUS }
+  | '*'              { STAR }
+  | '/'              { SLASH }
   | '='              { EQUALS }
   | "()"             { UNIT }
   | "_"              { WILDCARD }
+  | "\""             { STRING (read_string (Buffer.create 17) lexbuf) }
   | ident as id      { IDENT id }
   | numba as n       { NUM (int_of_string n) }
   | eof              { EOF }
   | _                { failwith "Unexpected character" }
+
+and read_string buf = parse
+  | '"'              { Buffer.contents buf }
+  | [^ '"']+         { Buffer.add_string buf (Lexing.lexeme lexbuf);
+                              read_string buf lexbuf }
+  | eof              { raise (SyntaxError "String is not terminated") }

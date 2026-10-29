@@ -1,19 +1,15 @@
 
-let loadDataBase = \() -> 
+let load_db = \() -> 
     { query: \(q: num) -> 69 }
 in
 
-let db = loadDataBase () in
+let db = load_db () in
 
-let getNews = marshal \(loc: { coords: num, time: num } ) ->
+let get_news = marshal \(loc: { coords: num, time: num } ) ->
     db.query loc.coords
 in
 
-# Create the channels that will be used for communication, ideally this language would have session types
-let c2s_chan = cnew [ db: { query: num -> num } ] unit -> num in
-let s2c_chan = cnew num in
-
-let serverMain = \() -> 
+let server_main = \(recv: chan [ db: { query: num -> num } ] unit -> num) (send: chan num) -> 
     # Server:
     #   2) Awaits client connections
     #   3) Executes code from client
@@ -22,20 +18,20 @@ let serverMain = \() ->
     # Await for a client to deliver code via channel, the `db` is dynamically rebounded
     # The unmarshal capture list is where the server provides its interface
     # 
-    #   - The type of c2s_chan is (Chan (unit -> num) @ [ db: { query: num -> num } ])
+    #   - The type of recv is (Chan (unit -> num) @ [ db: { query: num -> num } ])
     #   - Unmarshal provides 'db' which is compatible with the coeffect
     #   - The resulting code is of type (unit -> num) and can be executed on the server, 'db' will by dynamically rebound
     # 
-    let code = unmarshal [ db: db ] (c2s_chan ?) in
+    let code = unmarshal [ db: db ] (recv ?) in
 
     # Execute the code that we received
     let results = code () in
 
     # Send results back to client
-    s2c_chan ! (marshal results)
+    send ! (marshal results)
 in
 
-let windowsMain = \() ->
+let windows_main = \(send: chan [ db: { query: num -> num } ] unit -> num) (recv: chan num) -> 
     # Client
     #   1) Setup client-side UI
     #   2) Stubs the database, this will be a remote resource
@@ -46,19 +42,27 @@ let windowsMain = \() ->
     
     # Send the code we wish to send to the server
     # 
-    #   - The type of getNews is Marsh [ db: { query: num -> num } ] (loc: { coords: num, time: num } ) -> num
-    #   - This transitively applies to the marshaled code: '\(u: unit) -> getNews loc)' which is becomes type Marsh [ db: { query: num -> num } ] (unit -> num), 
-    #   - This is compatible with the type of c2s_chan
+    #   - The type of get_news is Marsh [ db: { query: num -> num } ] (loc: { coords: num, time: num } ) -> num
+    #   - This transitively applies to the marshaled code: '\(u: unit) -> get_news loc)' which is becomes type Marsh [ db: { query: num -> num } ] (unit -> num), 
+    #   - This is compatible with the type of the 'send' channel
     # 
-    let pkg = marshal \() -> getNews loc in
-    let _ = c2s_chan ! pkg in
+    let pkg = marshal \() -> get_news loc in
+    let _ = send ! pkg in
 
     # Get the result from the server
-    let result = unmarshal s2c_chan ? in
+    let result = unmarshal recv ? in
 
     # Show the results on the UI ...
     ()
 in
 
-if true then serverMain () else windowsMain ()
+# Create the channels that will be used for communication, ideally this language would have session types
+if true then 
+    let recv = listen [ db: { query: num -> num } ] unit -> num 8080 in
+    let send = listen num 8081 in
+    server_main recv send
+else 
+    let send = connect [ db: { query: num -> num } ] unit -> num "localhost" 8080 in
+    let recv = connect num "localhost" 8081 in
+    windows_main send recv
     

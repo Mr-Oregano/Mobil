@@ -5,6 +5,7 @@
 // Tokens
 %token <string> IDENT
 %token <int> NUM
+%token <string> STRING
 %token UNIT WILDCARD 
 
 %token KW_IF 
@@ -19,9 +20,11 @@
 %token KW_MARSHAL 
 %token KW_UNMARSHAL 
 %token KW_NUM
+%token KW_STR
 %token KW_BOOL
 %token KW_UNIT
-%token KW_CNEW
+%token KW_LISTEN
+%token KW_CONNECT
 
 %token LPAREN LBRACE LBRACK
 %token RPAREN RBRACE RBRACK
@@ -31,6 +34,7 @@
 %token PERIOD COMMA
 %token BACKSLASH
 %token COLON 
+%token SLASH STAR
 %token PLUS MINUS
 %token EQUALS
 %token EOF
@@ -64,6 +68,7 @@ typ:
 
 base_typ:
   | KW_NUM { T_Num }
+  | KW_STR { T_Str }
   | KW_BOOL { T_Bool }
   | KW_UNIT { T_Unit }
   | LPAREN t = typ RPAREN { t }
@@ -121,6 +126,8 @@ basic_expr:
 //   Left-associative binary operations: a + b + c === (a + b) + c
   | e1 = basic_expr PLUS e2 = app_expr { E_BinOp (O_Add, e1, e2) }
   | e1 = basic_expr MINUS e2 = app_expr { E_BinOp (O_Sub, e1, e2) }
+  | e1 = basic_expr STAR e2 = app_expr { E_BinOp (O_Mul, e1, e2) }
+  | e1 = basic_expr SLASH e2 = app_expr { E_BinOp (O_Div, e1, e2) }
   | e = basic_expr QUESTION { E_ChanReceive e }
 
 //   Left-associative channel send: a ! b ! c === (a ! b) ! c
@@ -135,8 +142,22 @@ app_expr:
 simple:
   | v = IDENT { E_Var v }
   | n = NUM { E_Num n }
+  | s = STRING { E_Str s }
   | e = simple PERIOD id = IDENT { E_Access (e, id) }
-  | KW_CNEW rqs = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) t = typ { E_NewChan { requirements = rqs; typ = t } }
+  
+  | KW_LISTEN  
+    rqs = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) 
+    t = typ 
+    p = NUM 
+    { E_Listen { requirements = rqs; typ = t; port = p } }
+
+  | KW_CONNECT 
+    rqs = loption(delimited(LBRACK, separated_list(COMMA, ident_type_pair), RBRACK)) 
+    t = typ 
+    a = STRING 
+    p = NUM 
+    { E_Connect { requirements = rqs; typ = t; port = p; addr = a } }
+
   | LBRACE es = separated_list(COMMA, ident_expr_pair) RBRACE { E_Rec es }
   | KW_TRUE { E_Bool true }
   | KW_FALSE { E_Bool false }

@@ -4,6 +4,7 @@ open Typing.Et
 
 type value =
   | V_Num of int
+  | V_Str of string
   | V_Bool of bool
   | V_Unit
   | V_Clo of {

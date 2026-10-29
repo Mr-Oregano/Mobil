@@ -29,7 +29,8 @@ let interpret (prog : prog) : value =
         | _ -> failwith "Failed to unmarshal non-marshaled type")
     | E_ChanSend { chan; package } -> failwith "Not implemented yet"
     | E_ChanReceive chan -> failwith "Not implemented yet"
-    | E_NewChan { requirements; typ } -> failwith "Not implemented yet"
+    | E_Listen { requirements; typ } -> failwith "Not implemented yet"
+    | E_Connect { requirements; typ } -> failwith "Not implemented yet"
     | E_Abs { param; body } -> V_Clo { param; body; env = List.of_seq (Env.to_seq env) }
     | E_If { cond; if_; else_ } -> (
         let cond' = eval_expr env cond in
@@ -46,6 +47,8 @@ let interpret (prog : prog) : value =
         match (op, v1, v2) with
         | O_Add, V_Num n1, V_Num n2 -> V_Num (n1 + n2)
         | O_Sub, V_Num n1, V_Num n2 -> V_Num (n1 - n2)
+        | O_Mul, V_Num n1, V_Num n2 -> V_Num (n1 * n2)
+        | O_Div, V_Num n1, V_Num n2 -> V_Num (n1 / n2)
         | _ -> failwith "Failed to compute binary operation")
     | E_App (callee, arg) -> (
         let callee' = eval_expr env callee in
@@ -75,6 +78,7 @@ let interpret (prog : prog) : value =
         let v_opt = Env.get_var env id in
         match v_opt with Some v -> v | None -> failwith (sprintf "Variable '%s' not found" id))
     | E_Num n -> V_Num n
+    | E_Str n -> V_Str n
     | E_Bool b -> V_Bool b
     | E_Unit -> V_Unit
     | E_Rec es ->

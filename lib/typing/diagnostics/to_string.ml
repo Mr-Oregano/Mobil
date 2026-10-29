@@ -10,6 +10,7 @@ let rec type_to_string (typ : typ) =
   in
   match typ with
   | T_Num -> "num"
+  | T_Str -> "str"
   | T_Bool -> "bool"
   | T_Unit -> "unit"
   | T_Func { from; to_ } ->

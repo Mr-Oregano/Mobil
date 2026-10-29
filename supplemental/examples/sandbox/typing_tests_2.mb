@@ -8,12 +8,22 @@ let std =
 }
 in
 
-# New channel is opened for communication, the channel guarantees specified requirements
-let c = cnew [ foo: num -> num ] num in
-
 ################## Client and server are shared program ##################
 
-let client_main = \() ->
+let server_main = \(c: chan [ foo: num -> num ] num) ->
+    # Server uses it's own log function, perhaps one that preprends a timestamp
+    let log = \(n: num) -> 
+        let _ = std.println (n + 69) in
+        n + 69
+    in
+
+    # Server unmarshals code providing `foo`
+    let pkg_ = c ? in
+    let result = unmarshal [ foo: \(n: num) -> log n ] pkg_ in
+    ()
+in
+
+let client_main = \(c: chan [ foo: num -> num ] num) ->
     # Client has some local function `foo` that does something
     let foo = \(n: num) -> 
         # Client-local implementation that has some debug print
@@ -27,20 +37,12 @@ let client_main = \() ->
     ()
 in
 
-let server_main = \() ->
-    # Server uses it's own log function, perhaps one that preprends a timestamp
-    let log = \(n: num) -> 
-        let _ = std.println (n + 69) in
-        n + 69
-    in
-
-    # Server opens its own channel for communication, the server guarantees specified requirements
-    let c_recv = cnew [ foo: num -> num ] num in
-
-    # Server unmarshals code providing `foo`
-    let pkg_ = c_recv ? in
-    let result = unmarshal [ foo: \(n: num) -> log n ] pkg_ in
-    ()
-in
-
-()
+# New channel is opened for communication, the channel guarantees specified requirements
+if true then
+    # Server
+    let c = listen [ foo: num -> num ] num 8080 in
+    server_main c
+else
+    # Client
+    let c = connect [ foo: num -> num ] num "localhost" 8080 in
+    client_main c

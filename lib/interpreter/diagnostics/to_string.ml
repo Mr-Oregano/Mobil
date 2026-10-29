@@ -11,6 +11,7 @@ let rec value_to_string v =
   let env_to_str env = entries_to_string "[ %s ]" ", " env in
   match v with
   | V_Num n -> Int.to_string n
+  | V_Str s -> s
   | V_Bool b -> Bool.to_string b
   | V_Unit -> "()"
   | V_Clo { param; body; env } ->

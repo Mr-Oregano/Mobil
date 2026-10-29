@@ -105,12 +105,18 @@ let type_check (prog : Ast.prog) =
           | _ -> failwith "Expected channel type"
         in
         (r, (E_ChanReceive chan', T_Marsh { coeff = s; typ = package_type }))
-    | E_NewChan { requirements; typ } ->
+    | E_Listen { requirements; typ; port } ->
         let typ' = type_check_type typ in
         let coeff' = type_check_coeff requirements in
         ( Coeffect.empty,
-          (E_NewChan { requirements = coeff'; typ = typ' }, T_Chan { coeff = coeff'; typ = typ' })
-        )
+          ( E_Listen { requirements = coeff'; typ = typ'; port },
+            T_Chan { coeff = coeff'; typ = typ' } ) )
+    | E_Connect { requirements; typ; port; addr } ->
+        let typ' = type_check_type typ in
+        let coeff' = type_check_coeff requirements in
+        ( Coeffect.empty,
+          ( E_Connect { requirements = coeff'; typ = typ'; port; addr },
+            T_Chan { coeff = coeff'; typ = typ' } ) )
     | E_Abs { param; body } ->
         let param' = type_check_param ctx param in
         let r, body' =
@@ -204,6 +210,7 @@ let type_check (prog : Ast.prog) =
             if is_mobile t then (Coeffect.empty, (E_Var v, t))
             else (Coeffect.singleton v t, (E_Var v, t)))
     | E_Num n -> (Coeffect.empty, (E_Num n, T_Num))
+    | E_Str s -> (Coeffect.empty, (E_Str s, T_Str))
     | E_Bool v -> (Coeffect.empty, (E_Bool v, T_Bool))
     | E_Unit -> (Coeffect.empty, (E_Unit, T_Unit))
     | E_Rec es ->
@@ -226,6 +233,7 @@ let type_check (prog : Ast.prog) =
   and type_check_type (typ : Ast.typ) =
     match typ with
     | T_Num -> T_Num
+    | T_Str -> T_Str
     | T_Bool -> T_Bool
     | T_Unit -> T_Unit
     | T_Func { from; to_ } ->
