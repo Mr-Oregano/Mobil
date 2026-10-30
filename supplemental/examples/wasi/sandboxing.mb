@@ -1,0 +1,26 @@
+# Emulated resources in the host environment
+let fs =  { read: \(file_id: num) -> 42 } in
+let net = { send: \(data: num)    -> () } in
+
+# 1. A computation requiring BOTH resources.
+# The type system infers the type as: Marsh_{fs: ..., net: ...} (num -> unit)
+let process_and_sync = marshal (
+    \(id: num) -> 
+        let data = fs.read id in 
+        net.send data
+) in
+
+# 2. A computation requiring ONLY the network resource.
+# The type system infers the type as: Marsh_{net: {send: num -> unit}} (num -> unit)
+let send_ping = marshal (
+    \(data: num) -> net.send data
+) in
+
+# --- RECEIVING CONTEXT ---
+# A sandboxed receiver that only has network access, not filesystem access.
+let sandboxed_receiver = \(net: { send: num -> unit }) -> 
+    let ping_func = unmarshal [ net: net ] send_ping in
+    ping_func 99
+in 
+
+sandboxed_receiver net

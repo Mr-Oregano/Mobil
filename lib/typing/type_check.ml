@@ -178,6 +178,7 @@ let type_check (prog : Ast.prog) =
         match snd callee' with
         | T_Func { from; to_ } ->
             (* Extract the latent coeffect 't' from the function type *)
+            (* TODO: Currently there's a bug here, if the expected type IS a marsh type this breaks it *)
             let s, arg' = coerce_unmarsh ctx arg in
             let () =
               assert_msg
